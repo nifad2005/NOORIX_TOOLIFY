@@ -2,9 +2,8 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from 'react';
-import Image from 'next/image';
+import NextImage from 'next/image'; // Renamed to avoid conflict with window.Image
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,16 +16,18 @@ import {
     Scale, 
     RotateCw, 
     Download, 
-    MinusSquare, // Using for generic filters
+    MinusSquare,
     Palette, 
-    Eraser as EraserIcon, // Renamed to avoid conflict
+    Eraser as EraserIcon,
     Type, 
     Square, 
-    Smile 
+    Smile,
+    FileImage,
+    Save
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
-type OutputFormat = 'image/jpeg' | 'image/png' | 'image/webp'; // SVG export is more complex, keeping simple for now
+type OutputFormat = 'image/jpeg' | 'image/png' | 'image/webp';
 
 export default function ImageEditor() {
   const [originalImageFile, setOriginalImageFile] = useState<File | null>(null);
@@ -52,7 +53,7 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null); // Reset active tool on new image
+        setActiveTool(null); 
       };
       reader.readAsDataURL(file);
     }
@@ -88,7 +89,6 @@ export default function ImageEditor() {
 
   const handleToolClick = (toolName: string) => {
     setActiveTool(toolName);
-    // For now, just a toast. Actual tool logic will be implemented later.
     toast({ title: "Tool Selected", description: `${toolName} selected. Functionality to be implemented.` });
   };
 
@@ -97,10 +97,8 @@ export default function ImageEditor() {
         toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive" });
         return;
     }
-    // This is a placeholder download for now. 
-    // Actual export will depend on canvas data after edits.
     const link = document.createElement('a');
-    link.href = imageSrc; // Should be the edited image data URL
+    link.href = imageSrc; 
     const originalNameParts = originalImageFile.name.split('.');
     originalNameParts.pop(); 
     const nameWithoutExtension = originalNameParts.join('.');
@@ -126,7 +124,7 @@ export default function ImageEditor() {
   const ToolButton = ({ icon: Icon, label, toolName }: { icon: React.ElementType, label: string, toolName: string }) => (
     <Button
       variant={activeTool === toolName ? "secondary" : "ghost"}
-      className="w-full justify-start text-sm h-9"
+      className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
     >
@@ -135,136 +133,125 @@ export default function ImageEditor() {
     </Button>
   );
 
+  // Height of SiteHeader is h-16 (4rem)
+  const editorHeight = "calc(100vh - 4rem - 1px)"; // 1px for potential border
+
   return (
-    <div className="w-full max-w-6xl space-y-6">
-      <header className="text-center py-6">
-        <h1 className="text-5xl font-bold font-headline text-primary">Toolify</h1>
-        <p className="text-xl text-muted-foreground mt-2">Online Image Editor</p>
-      </header>
+    <div 
+      className="w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      style={{ height: editorHeight }}
+    >
+      {/* Top Toolbar */}
+      <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
+        <div className="flex items-center gap-2">
+          {!imageSrc && (
+            <Button onClick={triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
+              <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
+            </Button>
+          )}
+          {imageSrc && (
+            <Button onClick={handleReset} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
+              <FileImage className="mr-2 h-4 w-4" /> New Image
+            </Button>
+          )}
+        </div>
+        
+        <div className="text-lg font-semibold text-primary dark:text-sky-400">
+          Image Editor
+        </div>
 
-      <Card className="shadow-xl overflow-hidden">
-        {!imageSrc ? (
-          <>
-            <CardHeader>
-              <CardTitle className="text-2xl font-headline">Edit Your Image</CardTitle>
-              <CardDescription>Upload an image to start using the editing tools.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                onClick={triggerFileInput}
-                className={`flex flex-col items-center justify-center p-10 py-16 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                  ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/70'}`}
-              >
-                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-                <p className="text-lg font-medium text-center">
-                  Drag & drop an image here, or click to select file
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">Supports PNG, JPG, GIF, WEBP</p>
-                <Input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={onFileSelected}
-                  className="hidden"
-                  accept="image/*"
-                />
-              </div>
-            </CardContent>
-          </>
-        ) : (
-          <div className="flex flex-col md:flex-row min-h-[calc(100vh-250px)] md:min-h-[600px]">
-            {/* Control Panel */}
-            <div className="w-full md:w-72 bg-card border-b md:border-b-0 md:border-r p-4 space-y-3 shrink-0 overflow-y-auto">
-              <h3 className="text-lg font-semibold mb-2 px-1">Tools</h3>
-              
-              <Separator />
-              <div className="py-1 space-y-1">
-                <ToolButton icon={Crop} label="Crop" toolName="crop" />
-                <ToolButton icon={Scale} label="Resize" toolName="resize" />
-                <ToolButton icon={RotateCw} label="Rotate/Flip" toolName="rotate" />
-              </div>
-              
-              <Separator />
-              <h4 className="text-md font-semibold pt-2 pb-1 px-1">Adjustments</h4>
-              <div className="py-1 space-y-1">
-                <ToolButton icon={Palette} label="Color Tune" toolName="colors" />
-                <ToolButton icon={MinusSquare} label="Filters" toolName="filters" />
-              </div>
-              
-              <Separator />
-              <h4 className="text-md font-semibold pt-2 pb-1 px-1">Elements</h4>
-              <div className="py-1 space-y-1">
-                <ToolButton icon={Type} label="Add Text" toolName="text" />
-                <ToolButton icon={Square} label="Add Shapes" toolName="shapes" />
-                <ToolButton icon={Smile} label="Stickers" toolName="stickers" />
-              </div>
-
-              <Separator />
-              <h4 className="text-md font-semibold pt-2 pb-1 px-1">Background</h4>
-              <div className="py-1 space-y-1">
-                 <ToolButton icon={EraserIcon} label="Remove BG" toolName="bg-remove" />
-              </div>
-              
-              <Separator className="mt-4 mb-2"/>
-
-              <div className="pt-2 space-y-2">
-                <Label htmlFor="output-format" className="text-sm font-medium px-1">Export Format</Label>
-                <Select value={outputFormat} onValueChange={(value) => setOutputFormat(value as OutputFormat)}>
-                  <SelectTrigger id="output-format">
-                    <SelectValue placeholder="Select format" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="image/png">PNG</SelectItem>
-                    <SelectItem value="image/jpeg">JPEG</SelectItem>
-                    <SelectItem value="image/webp">WEBP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button onClick={handleDownload} className="w-full mt-4 bg-accent hover:bg-accent/90">
-                <Download className="mr-2 h-4 w-4" /> Download Image
+        <div className="flex items-center gap-2">
+          {imageSrc && (
+            <>
+              <Select value={outputFormat} onValueChange={(value) => setOutputFormat(value as OutputFormat)}>
+                <SelectTrigger className="w-[100px] h-9 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-300 dark:focus:ring-sky-500">
+                  <SelectValue placeholder="Format" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-neutral-700 dark:border-neutral-600">
+                  <SelectItem value="image/png" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">PNG</SelectItem>
+                  <SelectItem value="image/jpeg" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">JPEG</SelectItem>
+                  <SelectItem value="image/webp" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">WEBP</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white">
+                <Save className="mr-2 h-4 w-4" /> Download
               </Button>
-              <Button variant="outline" onClick={handleReset} className="w-full mt-2">
-                <RotateCcw className="mr-2 h-4 w-4" /> New Image
-              </Button>
-            </div>
+            </>
+          )}
+          {!imageSrc && (
+             <Button size="sm" disabled className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white">
+                <Save className="mr-2 h-4 w-4" /> Download
+            </Button>
+          )}
+        </div>
+      </div>
 
-            {/* Image Display Area */}
-            <div className="flex-grow flex items-center justify-center bg-muted/30 p-4 relative overflow-hidden">
-              {imageSrc ? (
-                <div className="relative max-w-full max-h-full">
-                   <Image 
-                    src={imageSrc} 
-                    alt="Image for editing" 
-                    width={0} 
-                    height={0}
-                    sizes="100vw"
-                    style={{ 
-                        width: 'auto', 
-                        height: 'auto', 
-                        maxHeight: 'calc(100vh - 300px)', // Adjust based on your layout
-                        maxWidth: '100%',
-                        objectFit: 'contain',
-                        display: 'block'
-                    }}
-                    unoptimized // Important for editing to prevent Next.js optimization from interfering
-                    data-ai-hint="uploaded image"
-                    className="shadow-lg rounded"
-                  />
-                </div>
-              ) : (
-                // This part should not be reachable if imageSrc is required for this view
-                <div className="text-center text-muted-foreground">
-                  <ImageIconPlaceholder className="w-24 h-24 mx-auto mb-2" data-ai-hint="placeholder image" />
-                  <p>Image preview will appear here.</p>
-                </div>
-              )}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Tool Panel */}
+        <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-2 shrink-0 overflow-y-auto">
+          <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
+          <ToolButton icon={Crop} label="Crop" toolName="crop" />
+          <ToolButton icon={Scale} label="Resize" toolName="resize" />
+          <ToolButton icon={RotateCw} label="Rotate & Flip" toolName="rotate" />
+          
+          <Separator className="my-3 dark:bg-neutral-700" />
+          <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Adjust</h3>
+          <ToolButton icon={Palette} label="Color Tune" toolName="colors" />
+          <ToolButton icon={MinusSquare} label="Filters" toolName="filters" />
+          
+          <Separator className="my-3 dark:bg-neutral-700" />
+          <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Elements</h3>
+          <ToolButton icon={Type} label="Text" toolName="text" />
+          <ToolButton icon={Square} label="Shapes" toolName="shapes" />
+          <ToolButton icon={Smile} label="Stickers" toolName="stickers" />
+
+          <Separator className="my-3 dark:bg-neutral-700" />
+          <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Background</h3>
+          <ToolButton icon={EraserIcon} label="Remove BG" toolName="bg-remove" />
+        </div>
+
+        {/* Image Display Area (Canvas) */}
+        <div className="flex-grow flex items-center justify-center bg-muted/30 dark:bg-black/30 p-4 relative overflow-auto">
+          {!imageSrc ? (
+            <div
+              onClick={triggerFileInput}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-md max-h-md border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                ${isDragging ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-sky-900/30' : 'border-border dark:border-neutral-600 hover:border-primary/70 dark:hover:border-sky-500/70'}`}
+            >
+              <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
+              <p className="text-lg font-medium text-center dark:text-neutral-400">
+                Drag & drop an image here
+              </p>
+              <p className="text-sm text-muted-foreground dark:text-neutral-500 mt-1">or click to select file</p>
+              <Input type="file" ref={fileInputRef} onChange={onFileSelected} className="hidden" accept="image/*" />
             </div>
-          </div>
-        )}
-      </Card>
+          ) : (
+            <div className="relative max-w-full max-h-full">
+               <NextImage 
+                src={imageSrc} 
+                alt="Image for editing" 
+                width={0} 
+                height={0}
+                sizes="100vw"
+                style={{ 
+                    width: 'auto', 
+                    height: 'auto', 
+                    maxHeight: 'calc(100vh - 4rem - 2rem - 2rem)', // approx calculation for available space
+                    maxWidth: '100%',
+                    objectFit: 'contain',
+                    display: 'block'
+                }}
+                unoptimized 
+                data-ai-hint="uploaded image"
+                className="shadow-lg rounded"
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
