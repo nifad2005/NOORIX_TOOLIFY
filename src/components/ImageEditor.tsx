@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-// import NextImageService from 'next/image'; // Not using NextImage for canvas display
+import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -50,20 +50,15 @@ export default function ImageEditor() {
 
   const resetEditorState = () => {
     setOriginalImageFile(null);
-    setImageSrc(null); // This will trigger useEffect to clear currentImageElement and redraw
+    setImageSrc(null); 
     setActiveTool(null);
     setRotationAngle(0);
     setOutputFormat('image/png');
     setTextInput('');
-    // setTextColor('#FFFFFF'); // Keep color preference
-    // setFontSize(48); // Keep size preference
-    // setFontFamily('Arial'); // Keep font preference
     setIsAddingText(false);
-    // setCurrentImageElement(null); // Handled by imageSrc change
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    // Canvas clearing is handled by redrawCanvas when currentImageElement becomes null
   };
 
   const redrawCanvas = useCallback(() => {
@@ -74,15 +69,12 @@ export default function ImageEditor() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas attributes to container's client dimensions (inside padding)
-    // This makes the canvas pixel dimensions fixed to the container size
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (!currentImageElement) {
-      // No image to draw, canvas is clear. Placeholder logic handles visibility.
       return;
     }
     
@@ -119,14 +111,13 @@ export default function ImageEditor() {
   useEffect(() => {
     if (!imageSrc) {
       setCurrentImageElement(null); 
-      // redrawCanvas will be called by the dependency change on currentImageElement
       return;
     }
 
     const img = new window.Image();
     img.onload = () => {
-      setCurrentImageElement(img); // This triggers the redraw
-      // rotationAngle is reset by handleFileChange or resetEditorState
+      setCurrentImageElement(img); 
+      setRotationAngle(0); // Reset rotation when a new image is loaded
     };
     img.onerror = () => {
         toast({ title: "Error", description: "Could not load image file.", variant: "destructive" });
@@ -137,7 +128,7 @@ export default function ImageEditor() {
 
  
   useEffect(() => {
-    redrawCanvas(); // Initial draw and on changes
+    redrawCanvas(); 
 
     const handleResize = () => {
         redrawCanvas();
@@ -146,7 +137,7 @@ export default function ImageEditor() {
     return () => {
         window.removeEventListener('resize', handleResize);
     };
-  }, [redrawCanvas]); // redrawCanvas itself depends on currentImageElement and rotationAngle
+  }, [redrawCanvas]); 
 
 
   const handleFileChange = (file: File | null) => {
@@ -162,9 +153,9 @@ export default function ImageEditor() {
       setOriginalImageFile(file); 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageSrc(reader.result as string); // Triggers image loading useEffect
+        setImageSrc(reader.result as string); 
         setActiveTool(null);
-        setRotationAngle(0); 
+        // rotationAngle is reset in the image loading useEffect
         setIsAddingText(false);
       };
       reader.readAsDataURL(file);
@@ -211,7 +202,6 @@ export default function ImageEditor() {
     if (toolName === "rotate") {
       if (!currentImageElement) return;
       setRotationAngle(prevAngle => (prevAngle + 90) % 360);
-      // redrawCanvas is triggered by rotationAngle state change
       toast({ title: "Image Rotated", description: `Rotated 90° clockwise.`});
     } else if (toolName === "text") {
        toast({ title: "Text Tool Active", description: "Configure text, click 'Prepare', then click on canvas."});
@@ -235,13 +225,36 @@ export default function ImageEditor() {
       x *= scaleX;
       y *= scaleY;
       
-      // The canvas context used for drawing text is not pre-rotated by redrawCanvas's internal save/restore.
-      // redrawCanvas sets up the base rotated image. Text is drawn on top.
+      // Save current canvas state (which includes the base rotated image)
+      ctx.save();
+
+      // We need to "un-rotate" the context before drawing text if we want text to be axis-aligned
+      // This means if the canvas content is rotated, text is drawn as if on an unrotated canvas,
+      // then the whole thing is effectively rotated back.
+      // However, for baked-in text, we draw relative to the *current* canvas transform.
+      // The current redrawCanvas already handles the base image rotation.
+      // So, here we draw text directly onto the already transformed (rotated) canvas.
+
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillStyle = textColor;
       ctx.textAlign = 'left'; 
       ctx.textBaseline = 'top'; 
       ctx.fillText(textInput, x, y);
+      
+      ctx.restore(); // Restore to state before text drawing (mainly for font/style settings if needed)
+                      // The redrawCanvas effect will handle re-applying rotation on state changes if needed.
+
+      // Update currentImageElement to represent the canvas with text
+      // This is a bit tricky as currentImageElement expects an HTMLImageElement
+      // For now, text is baked. If we need undo or to treat text as an object, a different state management is needed.
+      // To "bake" it into what currentImageElement represents visually for next rotation:
+      const newImgDataUrl = canvas.toDataURL();
+      const newImg = new window.Image();
+      newImg.onload = () => {
+        setCurrentImageElement(newImg); // This will cause redrawCanvas to use the image with text
+      }
+      newImg.src = newImgDataUrl;
+
 
       setIsAddingText(false); 
       toast({ title: "Text Added", description: "Text has been drawn onto the canvas." });
@@ -250,19 +263,18 @@ export default function ImageEditor() {
 
 
   const handleDownload = () => {
-    if (!canvasRef.current || !currentImageElement || !originalImageFile) { // Check currentImageElement
+    if (!canvasRef.current || !currentImageElement || !originalImageFile) { 
         toast({ title: "No Image Data", description: "Please upload and process an image first.", variant: "destructive" });
         return;
     }
     const canvas = canvasRef.current;
-    if (canvas.width <= 1 || canvas.height <= 1) { // Check actual canvas pixel dimensions
+    if (canvas.width <= 1 || canvas.height <= 1) { 
          toast({ title: "Canvas Empty", description: "No image content to download.", variant: "destructive" });
         return;
     }
 
     let dataUrl;
     try {
-        // redrawCanvas(); // Ensure canvas is up-to-date before download (might be redundant if useEffect handles it)
         dataUrl = canvas.toDataURL(outputFormat);
     } catch (e) {
         toast({ title: "Download Error", description: "Could not export canvas image. Try PNG format.", variant: "destructive"});
@@ -289,7 +301,7 @@ export default function ImageEditor() {
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
-      disabled={!currentImageElement && !['upload', 'text'].includes(toolName)} // Disabled based on currentImageElement
+      disabled={!currentImageElement && !['upload', 'text'].includes(toolName)} 
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -301,7 +313,7 @@ export default function ImageEditor() {
       className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
-      <div className="h-14 border-b w-full dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
+      <div className="h-14 w-full dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
         <div className="flex items-center gap-2">
            <Button onClick={resetEditorState} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
             <RotateCcw className="mr-2 h-4 w-4" />
@@ -328,7 +340,7 @@ export default function ImageEditor() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden"> 
+      <div className="flex flex-1 overflow-hidden h-full"> {/* Parent of Tool Panel & Image Canvas */}
         {/* Left Tool Panel */}
         <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-1 shrink-0 overflow-y-auto">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
@@ -394,13 +406,13 @@ export default function ImageEditor() {
               </div>
               <Button 
                 onClick={() => {
-                  if (!currentImageElement) { // Check currentImageElement
+                  if (!currentImageElement) { 
                      toast({ title: "No Image", description: "Please upload an image before adding text.", variant: "default" });
                      return;
                   }
                   setIsAddingText(true)
                 }} 
-                disabled={!textInput.trim() || isAddingText || !currentImageElement} // Disabled based on currentImageElement
+                disabled={!textInput.trim() || isAddingText || !currentImageElement} 
                 size="sm"
                 className="w-full mt-2 h-8 text-xs bg-primary/80 hover:bg-primary dark:bg-sky-600 dark:hover:bg-sky-500"
               >
@@ -450,7 +462,6 @@ export default function ImageEditor() {
                 cursor: activeTool === 'text' && isAddingText ? 'crosshair' : 'default',
                 maxWidth: '100%', 
                 maxHeight: '100%',
-                // objectFit: 'contain' // Not applicable directly to canvas, logic is in redrawCanvas
               }}
             />
           )}
