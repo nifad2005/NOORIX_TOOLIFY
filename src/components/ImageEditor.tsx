@@ -9,19 +9,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from "@/hooks/use-toast";
 import {
     UploadCloud,
-    RotateCcw, 
+    RotateCcw,
     Crop,
     Scale,
     RotateCw,
-    Download, 
-    MinusSquare, 
-    Palette, 
-    Eraser as EraserIcon, 
-    Type, 
-    Square as ShapeIcon, 
-    Smile, 
-    FileImage, 
-    Save 
+    // Download, // No longer needed here, moved to Save
+    MinusSquare,
+    Palette,
+    Eraser as EraserIcon,
+    Type,
+    Square as ShapeIcon,
+    Smile,
+    // FileImage, // Not used
+    Save
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
@@ -51,7 +51,7 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null); 
+        setActiveTool(null);
       };
       reader.readAsDataURL(file);
     }
@@ -100,7 +100,7 @@ export default function ImageEditor() {
         return;
     }
     const link = document.createElement('a');
-    link.href = imageSrc; 
+    link.href = imageSrc;
     const originalNameParts = originalImageFile.name.split('.');
     originalNameParts.pop();
     const nameWithoutExtension = originalNameParts.join('.');
@@ -194,10 +194,9 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-grow flex flex-col items-center justify-center dark:bg-black p-4 relative overflow-auto">
+        <div className="flex-grow dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
-            // This is the parent of the placeholder, it ensures the placeholder is centered within the black canvas
-            <div className="relative w-full h-full flex items-center justify-center">
+            <div className="w-full h-full flex items-center justify-center">
                 <div
                 onClick={triggerFileInput}
                 onDragOver={onDragOver}
