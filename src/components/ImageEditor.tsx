@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+// import NextImageService from 'next/image'; // Not using NextImage for canvas display
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,13 +16,13 @@ import {
     MinusSquare,
     Palette,
     Eraser as EraserIcon,
-    Type as TypeIcon, // Renamed to avoid conflict
+    Type as TypeIcon,
     Square as ShapeIcon,
     Smile,
     Save
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label'; // For text tool UI
+import { Label } from '@/components/ui/label';
 
 type OutputFormat = 'image/jpeg' | 'image/png' | 'image/webp';
 
@@ -35,7 +36,7 @@ export default function ImageEditor() {
 
   // Text tool state
   const [textInput, setTextInput] = useState<string>('');
-  const [textColor, setTextColor] = useState<string>('#FFFFFF'); // Default white for dark canvas
+  const [textColor, setTextColor] = useState<string>('#FFFFFF');
   const [fontSize, setFontSize] = useState<number>(48);
   const [fontFamily, setFontFamily] = useState<string>('Arial');
   const [isAddingText, setIsAddingText] = useState<boolean>(false);
@@ -44,11 +45,12 @@ export default function ImageEditor() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null); // Ref for the canvas's direct container
   const { toast } = useToast();
 
   const resetEditorState = () => {
     setOriginalImageFile(null);
-    setImageSrc(null);
+    setImageSrc(null); // This will trigger useEffect to clear currentImageElement and redraw
     setActiveTool(null);
     setRotationAngle(0);
     setOutputFormat('image/png');
@@ -57,21 +59,95 @@ export default function ImageEditor() {
     // setFontSize(48); // Keep size preference
     // setFontFamily('Arial'); // Keep font preference
     setIsAddingText(false);
-    setCurrentImageElement(null);
+    // setCurrentImageElement(null); // Handled by imageSrc change
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Ensure canvas is small or hidden if no image
-        canvas.width = 1; 
-        canvas.height = 1;
-      }
-    }
+    // Canvas clearing is handled by redrawCanvas when currentImageElement becomes null
   };
+
+  const redrawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const container = canvasContainerRef.current;
+
+    if (!canvas || !container) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas attributes to container's client dimensions (inside padding)
+    // This makes the canvas pixel dimensions fixed to the container size
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!currentImageElement) {
+      // No image to draw, canvas is clear. Placeholder logic handles visibility.
+      return;
+    }
+    
+    ctx.save();
+    
+    const img = currentImageElement;
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+
+    const imgNaturalWidth = img.naturalWidth;
+    const imgNaturalHeight = img.naturalHeight;
+
+    const imgRatio = imgNaturalWidth / imgNaturalHeight;
+    const canvasRatio = canvasW / canvasH;
+
+    let drawW, drawH;
+    if (imgRatio > canvasRatio) { 
+      drawW = canvasW;
+      drawH = drawW / imgRatio;
+    } else { 
+      drawH = canvasH;
+      drawW = drawH * imgRatio;
+    }
+    
+    ctx.translate(canvasW / 2, canvasH / 2);
+    ctx.rotate(rotationAngle * Math.PI / 180);
+    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    
+    ctx.restore();
+
+  }, [currentImageElement, rotationAngle]);
+
+
+  useEffect(() => {
+    if (!imageSrc) {
+      setCurrentImageElement(null); 
+      // redrawCanvas will be called by the dependency change on currentImageElement
+      return;
+    }
+
+    const img = new window.Image();
+    img.onload = () => {
+      setCurrentImageElement(img); // This triggers the redraw
+      // rotationAngle is reset by handleFileChange or resetEditorState
+    };
+    img.onerror = () => {
+        toast({ title: "Error", description: "Could not load image file.", variant: "destructive" });
+        setCurrentImageElement(null);
+    }
+    img.src = imageSrc;
+  }, [imageSrc, toast]);
+
+ 
+  useEffect(() => {
+    redrawCanvas(); // Initial draw and on changes
+
+    const handleResize = () => {
+        redrawCanvas();
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+        window.removeEventListener('resize', handleResize);
+    };
+  }, [redrawCanvas]); // redrawCanvas itself depends on currentImageElement and rotationAngle
+
 
   const handleFileChange = (file: File | null) => {
     if (file) {
@@ -83,11 +159,10 @@ export default function ImageEditor() {
         });
         return;
       }
-      setOriginalImageFile(file); // Store original file info
+      setOriginalImageFile(file); 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageSrc(reader.result as string);
-        // Reset relevant states for a new image
+        setImageSrc(reader.result as string); // Triggers image loading useEffect
         setActiveTool(null);
         setRotationAngle(0); 
         setIsAddingText(false);
@@ -95,44 +170,6 @@ export default function ImageEditor() {
       reader.readAsDataURL(file);
     }
   };
-
-  // Effect for loading the initial image onto the canvas
-  useEffect(() => {
-    if (!imageSrc || !canvasRef.current) {
-      if (canvasRef.current) {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Optional: set canvas to a minimal size if you want it to "disappear"
-            // canvas.width = 1; canvas.height = 1;
-        }
-      }
-      setCurrentImageElement(null);
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const img = new window.Image();
-    img.onload = () => {
-      setRotationAngle(0); // Ensure rotation is reset for a new image
-      setIsAddingText(false); // Ensure text mode is off
-
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear for new image
-      ctx.drawImage(img, 0, 0);
-      setCurrentImageElement(img); // Store the image element for potential reuse
-    };
-    img.onerror = () => {
-        toast({ title: "Error", description: "Could not load image file onto canvas.", variant: "destructive" });
-        setCurrentImageElement(null);
-    }
-    img.src = imageSrc;
-  }, [imageSrc, toast]);
 
 
   const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,87 +201,68 @@ export default function ImageEditor() {
   };
 
   const handleToolClick = (toolName: string) => {
-    if (!imageSrc && toolName !== "upload") { // "upload" is implicit via placeholder
+    if (!currentImageElement && !['upload', 'text'].includes(toolName) ) { 
       toast({ title: "No Image", description: "Please upload an image first to use editing tools.", variant: "default" });
       return;
     }
     setActiveTool(toolName);
-    setIsAddingText(false); // Deactivate text adding mode when switching tools
+    setIsAddingText(false); 
 
     if (toolName === "rotate") {
-      if (!canvasRef.current) return;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Create a temporary canvas to hold the current image data
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      if (!tempCtx) return;
-
-      tempCanvas.width = canvas.width;
-      tempCanvas.height = canvas.height;
-      tempCtx.drawImage(canvas, 0, 0);
-
-      // Perform the rotation (90 degrees clockwise)
-      // New width is old height, new height is old width
-      canvas.width = tempCanvas.height;
-      canvas.height = tempCanvas.width;
-      
-      ctx.clearRect(0,0,canvas.width,canvas.height); // Clear the main canvas
-      ctx.save();
-      // Translate to the new center and rotate
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate(90 * Math.PI / 180); // Rotate 90 degrees
-      // Draw the image from the temporary canvas, centered
-      ctx.drawImage(tempCanvas, -tempCanvas.width / 2, -tempCanvas.height / 2);
-      ctx.restore(); // Restore context to default (removes translations/rotations)
-      
-      const newAngle = (rotationAngle + 90) % 360;
-      setRotationAngle(newAngle); // Update the angle state for informational purposes
-      toast({ title: "Image Rotated", description: `Rotated 90° clockwise. Angle: ${newAngle}°`});
-
+      if (!currentImageElement) return;
+      setRotationAngle(prevAngle => (prevAngle + 90) % 360);
+      // redrawCanvas is triggered by rotationAngle state change
+      toast({ title: "Image Rotated", description: `Rotated 90° clockwise.`});
     } else if (toolName === "text") {
-      // Specific logic for text tool handled by its own UI and handleCanvasClick
-       toast({ title: "Text Tool Active", description: "Configure text and click 'Prepare', then click on canvas."});
+       toast({ title: "Text Tool Active", description: "Configure text, click 'Prepare', then click on canvas."});
     } else if (toolName) {
       toast({ title: "Tool Selected", description: `${toolName} selected. Functionality to be implemented.` });
     }
   };
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (activeTool === 'text' && isAddingText && canvasRef.current && textInput.trim() !== '') {
+    if (activeTool === 'text' && isAddingText && canvasRef.current && textInput.trim() !== '' && currentImageElement) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       const rect = canvas.getBoundingClientRect();
+      let x = event.clientX - rect.left;
+      let y = event.clientY - rect.top;
+
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
-
-      const canvasX = (event.clientX - rect.left) * scaleX;
-      const canvasY = (event.clientY - rect.top) * scaleY;
-
+      x *= scaleX;
+      y *= scaleY;
+      
+      // The canvas context used for drawing text is not pre-rotated by redrawCanvas's internal save/restore.
+      // redrawCanvas sets up the base rotated image. Text is drawn on top.
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillStyle = textColor;
       ctx.textAlign = 'left'; 
       ctx.textBaseline = 'top'; 
-      ctx.fillText(textInput, canvasX, canvasY);
+      ctx.fillText(textInput, x, y);
 
-      setIsAddingText(false);
+      setIsAddingText(false); 
       toast({ title: "Text Added", description: "Text has been drawn onto the canvas." });
     }
   };
 
 
   const handleDownload = () => {
-    if (!canvasRef.current || !imageSrc || !originalImageFile) {
+    if (!canvasRef.current || !currentImageElement || !originalImageFile) { // Check currentImageElement
         toast({ title: "No Image Data", description: "Please upload and process an image first.", variant: "destructive" });
         return;
     }
     const canvas = canvasRef.current;
+    if (canvas.width <= 1 || canvas.height <= 1) { // Check actual canvas pixel dimensions
+         toast({ title: "Canvas Empty", description: "No image content to download.", variant: "destructive" });
+        return;
+    }
+
     let dataUrl;
     try {
+        // redrawCanvas(); // Ensure canvas is up-to-date before download (might be redundant if useEffect handles it)
         dataUrl = canvas.toDataURL(outputFormat);
     } catch (e) {
         toast({ title: "Download Error", description: "Could not export canvas image. Try PNG format.", variant: "destructive"});
@@ -271,7 +289,7 @@ export default function ImageEditor() {
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
-      disabled={!imageSrc && toolName !== "upload" && toolName !== "text"} // Allow text tool to be selected to show inputs
+      disabled={!currentImageElement && !['upload', 'text'].includes(toolName)} // Disabled based on currentImageElement
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -294,7 +312,7 @@ export default function ImageEditor() {
             <span className="text-lg font-semibold text-primary dark:text-sky-400 truncate px-2">Image Editor</span>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={outputFormat} onValueChange={(value) => setOutputFormat(value as OutputFormat)} disabled={!imageSrc}>
+          <Select value={outputFormat} onValueChange={(value) => setOutputFormat(value as OutputFormat)} disabled={!currentImageElement}>
             <SelectTrigger className="w-[100px] h-9 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-300 dark:focus:ring-sky-500 disabled:opacity-50 disabled:cursor-not-allowed">
               <SelectValue placeholder="Format" />
             </SelectTrigger>
@@ -304,13 +322,13 @@ export default function ImageEditor() {
               <SelectItem value="image/webp" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">WEBP</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white" disabled={!imageSrc}>
+          <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white" disabled={!currentImageElement}>
             <Save className="mr-2 h-4 w-4" /> Download
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden"> 
         {/* Left Tool Panel */}
         <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-1 shrink-0 overflow-y-auto">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
@@ -326,7 +344,7 @@ export default function ImageEditor() {
           <Separator className="my-2 dark:bg-neutral-700" />
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Elements</h3>
           <ToolButton icon={TypeIcon} label="Text" toolName="text" />
-          {activeTool === 'text' && imageSrc && (
+          {activeTool === 'text' && (
             <div className="p-2 space-y-3 border-t border-neutral-700 mt-1">
               <div>
                 <Label htmlFor="text-input" className="text-xs dark:text-neutral-400">Text Content</Label>
@@ -375,14 +393,20 @@ export default function ImageEditor() {
                 </Select>
               </div>
               <Button 
-                onClick={() => setIsAddingText(true)} 
-                disabled={!textInput.trim() || isAddingText}
+                onClick={() => {
+                  if (!currentImageElement) { // Check currentImageElement
+                     toast({ title: "No Image", description: "Please upload an image before adding text.", variant: "default" });
+                     return;
+                  }
+                  setIsAddingText(true)
+                }} 
+                disabled={!textInput.trim() || isAddingText || !currentImageElement} // Disabled based on currentImageElement
                 size="sm"
                 className="w-full mt-2 h-8 text-xs bg-primary/80 hover:bg-primary dark:bg-sky-600 dark:hover:bg-sky-500"
               >
                 {isAddingText ? "Click on Canvas..." : "Prepare to Add Text"}
               </Button>
-              {isAddingText && <p className="text-xs text-center text-sky-400 mt-1">Click on the canvas to place text.</p>}
+              {isAddingText && currentImageElement && <p className="text-xs text-center text-sky-400 mt-1">Click on the canvas to place text.</p>}
             </div>
           )}
           <ToolButton icon={ShapeIcon} label="Shapes" toolName="shapes" />
@@ -393,10 +417,10 @@ export default function ImageEditor() {
           <ToolButton icon={EraserIcon} label="Remove BG" toolName="bg-remove" />
         </div>
 
-        {/* Image Display Area (Canvas) */}
-        <div className="flex-grow dark:bg-black p-4 relative overflow-auto h-full">
-          {!imageSrc ? (
-             <div className="w-full h-full flex items-center justify-center">
+        {/* Image Display Area (Canvas Container) */}
+        <div ref={canvasContainerRef} className="flex-grow dark:bg-black p-4 relative overflow-auto h-full">
+          {!currentImageElement ? ( 
+             <div className="w-full h-full flex items-center justify-center"> 
                 <div
                 onClick={triggerFileInput}
                 onDragOver={onDragOver}
@@ -408,7 +432,7 @@ export default function ImageEditor() {
                     : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
                     }`}
                 >
-                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} data-ai-hint="upload interface" />
+                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} data-ai-hint="upload interface"/>
                 <p className="text-lg font-medium text-center dark:text-neutral-400">
                     Drag & drop an image here
                 </p>
@@ -417,15 +441,18 @@ export default function ImageEditor() {
                 </div>
             </div>
           ) : (
-            <div className="relative w-full h-full flex items-center justify-center">
-               <canvas
-                ref={canvasRef}
-                onClick={handleCanvasClick}
-                data-ai-hint="edited image"
-                className="block max-w-full max-h-full shadow-lg rounded"
-                style={{ cursor: activeTool === 'text' && isAddingText ? 'crosshair' : 'default' }}
-              />
-            </div>
+            <canvas
+              ref={canvasRef}
+              onClick={handleCanvasClick}
+              data-ai-hint="edited image content"
+              className="block shadow-lg rounded" 
+              style={{ 
+                cursor: activeTool === 'text' && isAddingText ? 'crosshair' : 'default',
+                maxWidth: '100%', 
+                maxHeight: '100%',
+                // objectFit: 'contain' // Not applicable directly to canvas, logic is in redrawCanvas
+              }}
+            />
           )}
         </div>
       </div>
