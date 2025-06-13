@@ -8,19 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
-import { 
-    UploadCloud, 
-    Image as ImageIconPlaceholder, 
-    RotateCcw, 
-    Crop, 
-    Scale, 
-    RotateCw, 
-    Download, 
+import {
+    UploadCloud,
+    Image as ImageIconPlaceholder,
+    RotateCcw,
+    Crop,
+    Scale,
+    RotateCw,
+    Download,
     MinusSquare,
-    Palette, 
+    Palette,
     Eraser as EraserIcon,
-    Type, 
-    Square, 
+    Type,
+    Square,
     Smile,
     FileImage,
     Save
@@ -53,7 +53,7 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null); 
+        setActiveTool(null);
       };
       reader.readAsDataURL(file);
     }
@@ -88,6 +88,10 @@ export default function ImageEditor() {
   };
 
   const handleToolClick = (toolName: string) => {
+    if (!imageSrc) {
+      toast({ title: "No Image", description: "Please upload an image first to use editing tools.", variant: "default" });
+      return;
+    }
     setActiveTool(toolName);
     toast({ title: "Tool Selected", description: `${toolName} selected. Functionality to be implemented.` });
   };
@@ -98,9 +102,9 @@ export default function ImageEditor() {
         return;
     }
     const link = document.createElement('a');
-    link.href = imageSrc; 
+    link.href = imageSrc;
     const originalNameParts = originalImageFile.name.split('.');
-    originalNameParts.pop(); 
+    originalNameParts.pop();
     const nameWithoutExtension = originalNameParts.join('.');
     const newExtension = outputFormat.split('/')[1] || 'bin';
     link.download = `${nameWithoutExtension}_edited.${newExtension}`;
@@ -109,7 +113,7 @@ export default function ImageEditor() {
     document.body.removeChild(link);
     toast({ title: "Download Started", description: `Downloading as ${newExtension.toUpperCase()} (current preview)` });
   };
-  
+
   const handleReset = () => {
     setOriginalImageFile(null);
     setImageSrc(null);
@@ -127,6 +131,7 @@ export default function ImageEditor() {
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
+      disabled={!imageSrc && toolName !== "upload"} // Keep upload active
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -134,51 +139,41 @@ export default function ImageEditor() {
   );
 
   return (
-    <div 
+    <div
       className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
         <div className="flex items-center gap-2">
-          {!imageSrc && (
+          {!imageSrc ? (
             <Button onClick={triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
               <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
             </Button>
-          )}
-          {imageSrc && (
+          ) : (
             <Button onClick={handleReset} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
               <FileImage className="mr-2 h-4 w-4" /> New Image
             </Button>
           )}
         </div>
-        
+
         <div className="text-lg font-semibold text-primary dark:text-sky-400">
           Image Editor
         </div>
 
         <div className="flex items-center gap-2">
-          {imageSrc && (
-            <>
-              <Select value={outputFormat} onValueChange={(value) => setOutputFormat(value as OutputFormat)}>
-                <SelectTrigger className="w-[100px] h-9 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-300 dark:focus:ring-sky-500">
-                  <SelectValue placeholder="Format" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-neutral-700 dark:border-neutral-600">
-                  <SelectItem value="image/png" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">PNG</SelectItem>
-                  <SelectItem value="image/jpeg" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">JPEG</SelectItem>
-                  <SelectItem value="image/webp" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">WEBP</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white">
-                <Save className="mr-2 h-4 w-4" /> Download
-              </Button>
-            </>
-          )}
-          {!imageSrc && (
-             <Button size="sm" disabled className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white">
-                <Save className="mr-2 h-4 w-4" /> Download
-            </Button>
-          )}
+          <Select value={outputFormat} onValueChange={(value) => setOutputFormat(value as OutputFormat)} disabled={!imageSrc}>
+            <SelectTrigger className="w-[100px] h-9 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-300 dark:focus:ring-sky-500 disabled:opacity-50 disabled:cursor-not-allowed">
+              <SelectValue placeholder="Format" />
+            </SelectTrigger>
+            <SelectContent className="dark:bg-neutral-700 dark:border-neutral-600">
+              <SelectItem value="image/png" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">PNG</SelectItem>
+              <SelectItem value="image/jpeg" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">JPEG</SelectItem>
+              <SelectItem value="image/webp" className="text-xs dark:text-neutral-300 dark:focus:bg-neutral-600">WEBP</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white" disabled={!imageSrc}>
+            <Save className="mr-2 h-4 w-4" /> Download
+          </Button>
         </div>
       </div>
 
@@ -189,12 +184,12 @@ export default function ImageEditor() {
           <ToolButton icon={Crop} label="Crop" toolName="crop" />
           <ToolButton icon={Scale} label="Resize" toolName="resize" />
           <ToolButton icon={RotateCw} label="Rotate & Flip" toolName="rotate" />
-          
+
           <Separator className="my-3 dark:bg-neutral-700" />
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Adjust</h3>
           <ToolButton icon={Palette} label="Color Tune" toolName="colors" />
           <ToolButton icon={MinusSquare} label="Filters" toolName="filters" />
-          
+
           <Separator className="my-3 dark:bg-neutral-700" />
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Elements</h3>
           <ToolButton icon={Type} label="Text" toolName="text" />
@@ -207,16 +202,16 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-grow flex items-center justify-center bg-muted/30 dark:bg-black p-4 relative overflow-auto">
+        <div className="flex-grow flex items-center justify-center dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
             <div
               onClick={triggerFileInput}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onDrop={onDrop}
-              className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-md max-h-md border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                ${isDragging 
-                  ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60' 
+              className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-lg max-h-lg border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                ${isDragging
+                  ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
                   : 'border-border dark:border-neutral-600 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
                 }`}
             >
@@ -228,22 +223,22 @@ export default function ImageEditor() {
               <Input type="file" ref={fileInputRef} onChange={onFileSelected} className="hidden" accept="image/*" />
             </div>
           ) : (
-            <div className="relative max-w-full max-h-full w-full h-full flex items-center justify-center">
-               <NextImage 
-                src={imageSrc} 
-                alt="Image for editing" 
-                width={0} 
+            <div className="relative w-full h-full flex items-center justify-center">
+               <NextImage
+                src={imageSrc}
+                alt="Image for editing"
+                width={0}
                 height={0}
-                sizes="100vw" // Should be adjusted based on actual layout if complex
-                style={{ 
-                    width: 'auto', 
-                    height: 'auto', 
-                    maxHeight: '100%', 
+                sizes="100vw"
+                style={{
+                    width: 'auto',
+                    height: 'auto',
+                    maxHeight: '100%',
                     maxWidth: '100%',
                     objectFit: 'contain',
                     display: 'block'
                 }}
-                unoptimized 
+                unoptimized
                 data-ai-hint="uploaded image"
                 className="shadow-lg rounded"
               />
@@ -254,3 +249,4 @@ export default function ImageEditor() {
     </div>
   );
 }
+
