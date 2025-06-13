@@ -37,6 +37,8 @@ interface ImageEditorToolPanelProps {
   onSaturationChange: (value: number) => void;
   grayscale: number;
   onGrayscaleChange: (value: number) => void;
+  hueRotate: number;
+  onHueRotateChange: (value: number) => void;
   onResetColorTune: () => void;
 }
 
@@ -56,11 +58,11 @@ const ToolButton = ({ icon: Icon, label, toolName, isActive, onClick, disabled }
 const ColorTuneSlider = ({ label, value, min, max, step, onChange, unit = "" }: { label: string, value: number, min: number, max: number, step: number, onChange: (value: number) => void, unit?: string }) => (
     <div>
         <div className="flex justify-between items-center mb-1">
-            <Label htmlFor={`slider-${label.toLowerCase()}`} className="text-xs dark:text-neutral-400">{label}</Label>
+            <Label htmlFor={`slider-${label.toLowerCase().replace(/\s+/g, '-')}`} className="text-xs dark:text-neutral-400">{label}</Label>
             <span className="text-xs dark:text-neutral-300">{value}{unit}</span>
         </div>
         <Slider
-            id={`slider-${label.toLowerCase()}`}
+            id={`slider-${label.toLowerCase().replace(/\s+/g, '-')}`}
             min={min}
             max={max}
             step={step}
@@ -97,6 +99,8 @@ export default function ImageEditorToolPanel({
   onSaturationChange,
   grayscale,
   onGrayscaleChange,
+  hueRotate,
+  onHueRotateChange,
   onResetColorTune,
 }: ImageEditorToolPanelProps) {
   
@@ -119,6 +123,7 @@ export default function ImageEditorToolPanel({
             <ColorTuneSlider label="Contrast" value={contrast} min={0} max={200} step={1} onChange={onContrastChange} unit="%"/>
             <ColorTuneSlider label="Saturation" value={saturation} min={0} max={200} step={1} onChange={onSaturationChange} unit="%"/>
             <ColorTuneSlider label="Grayscale" value={grayscale} min={0} max={100} step={1} onChange={onGrayscaleChange} unit="%"/>
+            <ColorTuneSlider label="Hue Rotate" value={hueRotate} min={0} max={360} step={1} onChange={onHueRotateChange} unit="deg"/>
             <Button
                 onClick={onResetColorTune}
                 variant="outline"
@@ -217,3 +222,5 @@ export default function ImageEditorToolPanel({
     </div>
   );
 }
+
+    
