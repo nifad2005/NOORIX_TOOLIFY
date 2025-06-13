@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 
 type OutputFormat = 'image/jpeg' | 'image/png' | 'image/webp';
+type TextAlign = 'left' | 'center' | 'right';
 
 export default function ImageEditor() {
   const [originalImageFile, setOriginalImageFile] = useState<File | null>(null);
@@ -39,13 +40,14 @@ export default function ImageEditor() {
   const [textColor, setTextColor] = useState<string>('#FFFFFF');
   const [fontSize, setFontSize] = useState<number>(48);
   const [fontFamily, setFontFamily] = useState<string>('Arial');
+  const [textAlign, setTextAlign] = useState<TextAlign>('left');
   const [isAddingText, setIsAddingText] = useState<boolean>(false);
 
   const [currentImageElement, setCurrentImageElement] = useState<HTMLImageElement | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const canvasContainerRef = useRef<HTMLDivElement>(null); // Ref for the canvas's direct container
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const resetEditorState = () => {
@@ -55,7 +57,23 @@ export default function ImageEditor() {
     setRotationAngle(0);
     setOutputFormat('image/png');
     setTextInput('');
+    // setTextColor('#FFFFFF'); // Keep user preference
+    // setFontSize(48); // Keep user preference
+    // setFontFamily('Arial'); // Keep user preference
+    // setTextAlign('left'); // Keep user preference
     setIsAddingText(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Optionally set canvas attributes to 0 to truly clear it visually if no image is loaded
+            // canvas.width = 0; 
+            // canvas.height = 0;
+        }
+    }
+    setCurrentImageElement(null); 
+
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -65,18 +83,23 @@ export default function ImageEditor() {
     const canvas = canvasRef.current;
     const container = canvasContainerRef.current;
 
-    if (!canvas || !container) return;
+    if (!canvas || !container || !currentImageElement) {
+      if (canvas && !currentImageElement) { // Clear canvas if no image
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+              ctx.clearRect(0,0, canvas.width, canvas.height);
+          }
+      }
+      return;
+    }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Set canvas pixel dimensions to match its container's display size
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (!currentImageElement) {
-      return;
-    }
     
     ctx.save();
     
@@ -87,7 +110,15 @@ export default function ImageEditor() {
     const imgNaturalWidth = img.naturalWidth;
     const imgNaturalHeight = img.naturalHeight;
 
-    const imgRatio = imgNaturalWidth / imgNaturalHeight;
+    // Determine rotated dimensions for calculating fit
+    let rotatedImgWidth = imgNaturalWidth;
+    let rotatedImgHeight = imgNaturalHeight;
+    if (rotationAngle === 90 || rotationAngle === 270) {
+        rotatedImgWidth = imgNaturalHeight;
+        rotatedImgHeight = imgNaturalWidth;
+    }
+    
+    const imgRatio = rotatedImgWidth / rotatedImgHeight;
     const canvasRatio = canvasW / canvasH;
 
     let drawW, drawH;
@@ -101,7 +132,13 @@ export default function ImageEditor() {
     
     ctx.translate(canvasW / 2, canvasH / 2);
     ctx.rotate(rotationAngle * Math.PI / 180);
-    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    
+    // Draw the image. If rotated 90/270, use original w/h for drawImage, as rotation handles orientation.
+    if (rotationAngle === 90 || rotationAngle === 270) {
+        ctx.drawImage(img, -drawH / 2, -drawW / 2, drawH, drawW); // Swapped drawW/drawH due to rotation
+    } else {
+        ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+    }
     
     ctx.restore();
 
@@ -111,26 +148,29 @@ export default function ImageEditor() {
   useEffect(() => {
     if (!imageSrc) {
       setCurrentImageElement(null); 
+      redrawCanvas(); // Clear canvas if imageSrc is removed
       return;
     }
 
     const img = new window.Image();
     img.onload = () => {
       setCurrentImageElement(img); 
-      setRotationAngle(0); // Reset rotation when a new image is loaded
+      setRotationAngle(0); // Reset rotation for a new image
     };
     img.onerror = () => {
         toast({ title: "Error", description: "Could not load image file.", variant: "destructive" });
         setCurrentImageElement(null);
+        redrawCanvas(); // Clear canvas on error
     }
     img.src = imageSrc;
-  }, [imageSrc, toast]);
+  }, [imageSrc, toast, redrawCanvas]);
 
  
   useEffect(() => {
     redrawCanvas(); 
 
     const handleResize = () => {
+        // Debounce this in a real app
         redrawCanvas();
     };
     window.addEventListener('resize', handleResize);
@@ -155,8 +195,8 @@ export default function ImageEditor() {
       reader.onloadend = () => {
         setImageSrc(reader.result as string); 
         setActiveTool(null);
-        // rotationAngle is reset in the image loading useEffect
         setIsAddingText(false);
+        // rotationAngle is reset in the image loading useEffect for currentImageElement
       };
       reader.readAsDataURL(file);
     }
@@ -185,7 +225,7 @@ export default function ImageEditor() {
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-  }, [handleFileChange]);
+  }, []); // Removed handleFileChange from deps as it's defined outside or stable
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -200,12 +240,22 @@ export default function ImageEditor() {
     setIsAddingText(false); 
 
     if (toolName === "rotate") {
-      if (!currentImageElement) return;
-      setRotationAngle(prevAngle => (prevAngle + 90) % 360);
-      toast({ title: "Image Rotated", description: `Rotated 90° clockwise.`});
+      if (!currentImageElement || !canvasRef.current) return;
+      
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const newAngle = (rotationAngle + 90) % 360;
+      setRotationAngle(newAngle); 
+      // redrawCanvas will be called by useEffect listening to rotationAngle
+      toast({ title: "Image Rotated", description: `Rotated to ${newAngle}°`});
+
     } else if (toolName === "text") {
        toast({ title: "Text Tool Active", description: "Configure text, click 'Prepare', then click on canvas."});
     } else if (toolName) {
+      // For other tools, ensure canvas is redrawn to reflect any state changes if necessary
+      redrawCanvas(); 
       toast({ title: "Tool Selected", description: `${toolName} selected. Functionality to be implemented.` });
     }
   };
@@ -220,44 +270,38 @@ export default function ImageEditor() {
       let x = event.clientX - rect.left;
       let y = event.clientY - rect.top;
 
+      // Scale click coordinates to canvas pixel coordinates
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
       x *= scaleX;
       y *= scaleY;
       
-      // Save current canvas state (which includes the base rotated image)
-      ctx.save();
+      ctx.save(); // Save context state before drawing text
 
-      // We need to "un-rotate" the context before drawing text if we want text to be axis-aligned
-      // This means if the canvas content is rotated, text is drawn as if on an unrotated canvas,
-      // then the whole thing is effectively rotated back.
-      // However, for baked-in text, we draw relative to the *current* canvas transform.
-      // The current redrawCanvas already handles the base image rotation.
-      // So, here we draw text directly onto the already transformed (rotated) canvas.
-
+      // The redrawCanvas function already handles the base image and its rotation.
+      // We are drawing text on top of whatever is currently on the canvas.
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillStyle = textColor;
-      ctx.textAlign = 'left'; 
-      ctx.textBaseline = 'top'; 
+      ctx.textAlign = textAlign; 
+      ctx.textBaseline = 'middle'; // Or 'top', 'bottom' as preferred
       ctx.fillText(textInput, x, y);
       
-      ctx.restore(); // Restore to state before text drawing (mainly for font/style settings if needed)
-                      // The redrawCanvas effect will handle re-applying rotation on state changes if needed.
+      ctx.restore(); // Restore context state
 
-      // Update currentImageElement to represent the canvas with text
-      // This is a bit tricky as currentImageElement expects an HTMLImageElement
-      // For now, text is baked. If we need undo or to treat text as an object, a different state management is needed.
-      // To "bake" it into what currentImageElement represents visually for next rotation:
-      const newImgDataUrl = canvas.toDataURL();
+      // "Bake" the text into the currentImageElement by updating it with the canvas content
+      const newImgDataUrl = canvas.toDataURL(outputFormat); // Use selected output format
       const newImg = new window.Image();
       newImg.onload = () => {
-        setCurrentImageElement(newImg); // This will cause redrawCanvas to use the image with text
+        setCurrentImageElement(newImg); // This will be used by redrawCanvas on next full redraw (e.g. rotation)
+                                      // And also for download
+      }
+      newImg.onerror = () => {
+        toast({title: "Error", description: "Could not update image with text.", variant: "destructive"});
       }
       newImg.src = newImgDataUrl;
 
-
       setIsAddingText(false); 
-      toast({ title: "Text Added", description: "Text has been drawn onto the canvas." });
+      toast({ title: "Text Added", description: "Text has been drawn onto the image." });
     }
   };
 
@@ -268,13 +312,22 @@ export default function ImageEditor() {
         return;
     }
     const canvas = canvasRef.current;
+     // Check if canvas is effectively empty (e.g. only transparent pixels or too small)
     if (canvas.width <= 1 || canvas.height <= 1) { 
          toast({ title: "Canvas Empty", description: "No image content to download.", variant: "destructive" });
         return;
     }
 
+    // Ensure the canvas has the most up-to-date drawing before exporting
+    // This is important if some operations don't immediately update currentImageElement
+    // For now, redrawCanvas updates the visual canvas, and text/rotation updates currentImageElement through dataURL
+    // redrawCanvas(); // Could be called here if there's doubt, but might be redundant if currentImageElement is source of truth
+
     let dataUrl;
     try {
+        // Use the currentImageElement's source if it represents the latest state
+        // OR directly from canvas if canvas is the most up-to-date visual representation
+        // For simplicity with baking, using canvas.toDataURL is more direct for "what you see is what you get"
         dataUrl = canvas.toDataURL(outputFormat);
     } catch (e) {
         toast({ title: "Download Error", description: "Could not export canvas image. Try PNG format.", variant: "destructive"});
@@ -282,12 +335,14 @@ export default function ImageEditor() {
         return;
     }
 
+
     const link = document.createElement('a');
     link.href = dataUrl;
     const originalNameParts = originalImageFile.name.split('.');
-    originalNameParts.pop();
+    originalNameParts.pop(); // Remove original extension
     const nameWithoutExtension = originalNameParts.join('.');
-    const newExtension = outputFormat.split('/')[1] || 'bin';
+    const newExtension = outputFormat.split('/')[1] || 'bin'; // Fallback to bin if split fails
+    
     link.download = `${nameWithoutExtension}_edited.${newExtension}`;
     document.body.appendChild(link);
     link.click();
@@ -310,7 +365,7 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="flex-1 w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 w-full dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
@@ -379,17 +434,32 @@ export default function ImageEditor() {
                   className="mt-1 h-8 w-full p-0.5 dark:bg-neutral-700 dark:border-neutral-600"
                 />
               </div>
-              <div>
-                <Label htmlFor="font-size" className="text-xs dark:text-neutral-400">Font Size (px)</Label>
-                <Input 
-                  id="font-size" 
-                  type="number" 
-                  value={fontSize} 
-                  onChange={(e) => setFontSize(parseInt(e.target.value, 10) || 12)}
-                  min="8"
-                  max="256"
-                  className="mt-1 h-8 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="font-size" className="text-xs dark:text-neutral-400">Size (px)</Label>
+                  <Input 
+                    id="font-size" 
+                    type="number" 
+                    value={fontSize} 
+                    onChange={(e) => setFontSize(parseInt(e.target.value, 10) || 12)}
+                    min="8"
+                    max="256"
+                    className="mt-1 h-8 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200"
+                  />
+                </div>
+                <div>
+                    <Label htmlFor="text-align" className="text-xs dark:text-neutral-400">Align</Label>
+                    <Select value={textAlign} onValueChange={(value) => setTextAlign(value as TextAlign)}>
+                        <SelectTrigger id="text-align" className="mt-1 h-8 text-xs dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                            <SelectValue placeholder="Align" />
+                        </SelectTrigger>
+                        <SelectContent className="dark:bg-neutral-700 dark:border-neutral-600">
+                            <SelectItem value="left" className="text-xs dark:text-neutral-300 dark:hover:!bg-neutral-600 dark:focus:bg-neutral-600">Left</SelectItem>
+                            <SelectItem value="center" className="text-xs dark:text-neutral-300 dark:hover:!bg-neutral-600 dark:focus:bg-neutral-600">Center</SelectItem>
+                            <SelectItem value="right" className="text-xs dark:text-neutral-300 dark:hover:!bg-neutral-600 dark:focus:bg-neutral-600">Right</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
               </div>
               <div>
                 <Label htmlFor="font-family" className="text-xs dark:text-neutral-400">Font Family</Label>
@@ -410,9 +480,13 @@ export default function ImageEditor() {
                      toast({ title: "No Image", description: "Please upload an image before adding text.", variant: "default" });
                      return;
                   }
+                  if (!textInput.trim()) {
+                     toast({ title: "No Text", description: "Please enter some text to add.", variant: "default" });
+                     return;
+                  }
                   setIsAddingText(true)
                 }} 
-                disabled={!textInput.trim() || isAddingText || !currentImageElement} 
+                disabled={isAddingText || !currentImageElement} 
                 size="sm"
                 className="w-full mt-2 h-8 text-xs bg-primary/80 hover:bg-primary dark:bg-sky-600 dark:hover:bg-sky-500"
               >
@@ -430,9 +504,9 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas Container) */}
-        <div ref={canvasContainerRef} className="flex-grow  dark:bg-black p-4 relative overflow-auto ">
+        <div ref={canvasContainerRef} className="flex-grow dark:bg-black p-4 relative overflow-auto h-full">
           {!currentImageElement ? ( 
-             <div className="w-full h-full flex items-center justify-center"> 
+             <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper */}
                 <div
                 onClick={triggerFileInput}
                 onDragOver={onDragOver}
@@ -444,7 +518,7 @@ export default function ImageEditor() {
                     : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
                     }`}
                 >
-                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} data-ai-hint="upload interface"/>
+                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} data-ai-hint="upload interface" />
                 <p className="text-lg font-medium text-center dark:text-neutral-400">
                     Drag & drop an image here
                 </p>
@@ -462,6 +536,7 @@ export default function ImageEditor() {
                 cursor: activeTool === 'text' && isAddingText ? 'crosshair' : 'default',
                 maxWidth: '100%', 
                 maxHeight: '100%',
+                // Removed bg-white and border from here
               }}
             />
           )}
@@ -470,4 +545,3 @@ export default function ImageEditor() {
     </div>
   );
 }
-
