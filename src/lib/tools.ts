@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { ImageIcon, Replace, Music, Video, Code2, FileText, Sparkles, ImageUp, Shrink } from 'lucide-react';
+import { ImageIcon, Replace, Music, Video, Code2, FileText, Sparkles, ImageUp, Shrink, Edit } from 'lucide-react';
 
 export interface Tool {
   id: string;
@@ -41,6 +41,14 @@ export const toolsList: Tool[] = [
     description: 'Change image types (e.g., JPG to PNG, WEBP).',
     href: '/tools/image-converter',
     icon: Replace,
+    category: 'image',
+  },
+  {
+    id: 'image-editor',
+    name: 'Image Editor',
+    description: 'Edit and enhance your images with various tools.',
+    href: '/tools/image-editor',
+    icon: Edit,
     category: 'image',
   },
   {
