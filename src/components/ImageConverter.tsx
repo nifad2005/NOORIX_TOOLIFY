@@ -135,9 +135,8 @@ export default function ImageConverter() {
 
       let qualityParam: number | undefined;
       if (outputFormat === 'image/jpeg' || outputFormat === 'image/webp') {
-        qualityParam = 1.0; // Use highest quality for JPEG/WEBP to minimize file size changes from compression
+        qualityParam = 1.0; 
       }
-      // For PNG, qualityParam is not applicable/ignored by toDataURL, it's inherently lossless.
       
       const convertedDataUrl = canvas.toDataURL(outputFormat, qualityParam);
       setConvertedImageSrc(convertedDataUrl);
@@ -198,7 +197,7 @@ export default function ImageConverter() {
   };
 
   return (
-    <div className="w-full max-w-3xl space-y-8">
+    <div className="w-full max-w-3xl space-y-8 mx-auto">
       <header className="text-center py-6">
         <h1 className="text-5xl font-bold font-headline text-primary">Toolify</h1>
         <p className="text-xl text-muted-foreground mt-2">Online Image Format Converter</p>

@@ -43,7 +43,7 @@ export default function RootLayout({
             <SiteSidebar />
             <SidebarInset className="flex-1 flex flex-col">
               <SiteHeader />
-              <main className="flex-1 overflow-auto flex flex-col items-center">
+              <main className="flex-1 overflow-auto flex flex-col"> {/* Removed items-center */}
                 {children}
               </main>
               <Toaster />

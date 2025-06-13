@@ -228,17 +228,17 @@ export default function ImageEditor() {
               <Input type="file" ref={fileInputRef} onChange={onFileSelected} className="hidden" accept="image/*" />
             </div>
           ) : (
-            <div className="relative max-w-full max-h-full">
+            <div className="relative max-w-full max-h-full w-full h-full flex items-center justify-center">
                <NextImage 
                 src={imageSrc} 
                 alt="Image for editing" 
                 width={0} 
                 height={0}
-                sizes="100vw"
+                sizes="100vw" // Should be adjusted based on actual layout if complex
                 style={{ 
                     width: 'auto', 
                     height: 'auto', 
-                    maxHeight: 'calc(100vh - 4rem - 1px - 2rem)', // Parent height minus top toolbar minus padding
+                    maxHeight: '100%', 
                     maxWidth: '100%',
                     objectFit: 'contain',
                     display: 'block'
@@ -254,4 +254,3 @@ export default function ImageEditor() {
     </div>
   );
 }
-
