@@ -135,7 +135,7 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full flex flex-1 flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
@@ -167,7 +167,7 @@ export default function ImageEditor() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden"> {/* This flex-1 is for height distribution */}
         {/* Left Tool Panel */}
         <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-2 shrink-0 overflow-y-auto">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
@@ -192,19 +192,20 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-1 dark:bg-black p-4 relative overflow-auto">
+        {/* This flex-1 makes it take remaining width */}
+        <div className="flex-1 dark:bg-black p-4 relative overflow-auto"> 
           {!imageSrc ? (
-            <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper */}
+             <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper - Full size */}
                 <div
                 onClick={triggerFileInput}
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onDrop={onDrop}
-                className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-2xl max-h-xl border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                className={`flex flex-col items-center justify-center p-10 max-w-2xl max-h-xl border-2 border-dashed rounded-lg cursor-pointer transition-colors
                     ${isDragging
                     ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
                     : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
-                    }`}
+                    }`} /* Max-sized content box */
                 >
                 <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
                 <p className="text-lg font-medium text-center dark:text-neutral-400">
@@ -215,7 +216,7 @@ export default function ImageEditor() {
                 </div>
             </div>
           ) : (
-            <div className="relative w-full h-full"> {/* Image wrapper - removed flex centering */}
+            <div className="relative w-full h-full"> {/* Image wrapper - Full size */}
                <NextImage
                 src={imageSrc}
                 alt="Image for editing"
@@ -223,7 +224,7 @@ export default function ImageEditor() {
                 style={{ objectFit: 'contain' }}
                 unoptimized
                 data-ai-hint="uploaded image"
-                className="shadow-lg rounded"
+                className="shadow-lg rounded" 
               />
             </div>
           )}
@@ -232,3 +233,4 @@ export default function ImageEditor() {
     </div>
   );
 }
+
