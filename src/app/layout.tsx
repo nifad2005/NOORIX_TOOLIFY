@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className="font-body antialiased min-h-screen flex flex-col w-full">
         <SiteHeader />
 
-        <main className="flex-1 flex flex-col border-4 border-sky-300  overflow-auto">
+        <main className="flex-1 flex flex-col   overflow-auto">
           {children}
         </main>
 

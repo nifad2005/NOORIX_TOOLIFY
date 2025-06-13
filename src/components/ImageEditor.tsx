@@ -310,7 +310,7 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="flex-1 w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 w-full dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
@@ -430,7 +430,7 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas Container) */}
-        <div ref={canvasContainerRef} className="flex-grow dark:bg-black p-4 relative overflow-auto h-full">
+        <div ref={canvasContainerRef} className="flex-grow  dark:bg-black p-4 relative overflow-auto ">
           {!currentImageElement ? ( 
              <div className="w-full h-full flex items-center justify-center"> 
                 <div

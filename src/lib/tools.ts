@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { ImageIcon, Replace, Music, Video, Code2, FileText, Sparkles, ImageUp, Shrink, Edit } from 'lucide-react';
+import { ImageIcon, Replace, Music, Video, Code2, FileText, Sparkles, ImageUp, Shrink, Edit, QrCode } from 'lucide-react';
 
 export interface Tool {
   id: string;
@@ -58,6 +58,14 @@ export const toolsList: Tool[] = [
     href: '/tools/pdf-compressor',
     icon: Shrink,
     category: 'document',
+  },
+  {
+    id: 'qr-code-generator',
+    name: 'QR Code Generator',
+    description: 'Create QR codes for URLs, text, and more.',
+    href: '/tools/qr-code-generator',
+    icon: QrCode,
+    category: 'others',
   }
   // Placeholder for future tools
   // {
