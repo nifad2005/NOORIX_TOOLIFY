@@ -49,7 +49,7 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null);
+        setActiveTool(null); // Reset active tool when new image is loaded
       };
       reader.readAsDataURL(file);
     }
@@ -98,7 +98,7 @@ export default function ImageEditor() {
         return;
     }
     const link = document.createElement('a');
-    link.href = imageSrc;
+    link.href = imageSrc; // In a real editor, this would be the processed image data
     const originalNameParts = originalImageFile.name.split('.');
     originalNameParts.pop();
     const nameWithoutExtension = originalNameParts.join('.');
@@ -135,11 +135,11 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full border-4 border-black  flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
-      <div className="h-14  border-b w-full border-4 border-black dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
-        <div className="flex items-center gap-2 border-4 border-black">
+      <div className="h-14 border-b w-full dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
+        <div className="flex items-center gap-2">
            <Button onClick={imageSrc ? handleNewImage : triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
             {imageSrc ? <RotateCcw className="mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
             {imageSrc ? "New Image" : "Upload Image"}
@@ -162,7 +162,7 @@ export default function ImageEditor() {
             </SelectContent>
           </Select>
           <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white" disabled={!imageSrc}>
-            <Save className="mr-2 h-4 w-4" /> Download image
+            <Save className="mr-2 h-4 w-4" /> Download
           </Button>
         </div>
       </div>
@@ -192,10 +192,9 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        {/* This flex-1 makes it take remaining width */}
-        <div className="flex-1 dark:bg-black p-4 relative overflow-auto"> 
+        <div className="flex-1 dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
-             <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper - Full size */}
+            <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper - Full size */}
                 <div
                 onClick={triggerFileInput}
                 onDragOver={onDragOver}
@@ -205,7 +204,7 @@ export default function ImageEditor() {
                     ${isDragging
                     ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
                     : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
-                    }`} /* Max-sized content box */
+                    }`}
                 >
                 <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
                 <p className="text-lg font-medium text-center dark:text-neutral-400">
@@ -216,7 +215,7 @@ export default function ImageEditor() {
                 </div>
             </div>
           ) : (
-            <div className="relative w-full h-full"> {/* Image wrapper - Full size */}
+            <div className="relative w-full h-full"> {/* Image wrapper */}
                <NextImage
                 src={imageSrc}
                 alt="Image for editing"
@@ -224,7 +223,7 @@ export default function ImageEditor() {
                 style={{ objectFit: 'contain' }}
                 unoptimized
                 data-ai-hint="uploaded image"
-                className="shadow-lg rounded" 
+                className="shadow-lg rounded"
               />
             </div>
           )}
@@ -233,4 +232,3 @@ export default function ImageEditor() {
     </div>
   );
 }
-
