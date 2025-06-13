@@ -13,9 +13,5 @@ export default function ImageEditorPage() {
     };
   }, []);
 
-  return (
-    <div className="w-full h-full flex flex-col"> {/* Ensure page takes full height */}
-      <ImageEditor />
-    </div>
-  );
+  return <ImageEditor />;
 }

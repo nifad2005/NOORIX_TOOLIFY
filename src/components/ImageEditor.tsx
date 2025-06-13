@@ -13,14 +13,12 @@ import {
     Crop,
     Scale,
     RotateCw,
-    // Download, // No longer needed here, moved to Save
     MinusSquare,
     Palette,
     Eraser as EraserIcon,
     Type,
     Square as ShapeIcon,
     Smile,
-    // FileImage, // Not used
     Save
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -137,7 +135,7 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="h-full w-full flex flex-1 flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
