@@ -2,28 +2,26 @@
 "use client";
 
 import React, { useState, useCallback, useRef } from 'react';
-import NextImage from 'next/image'; // Renamed to avoid conflict with window.Image
+import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import {
     UploadCloud,
-    Image as ImageIconPlaceholder,
-    RotateCcw,
+    RotateCcw, 
     Crop,
     Scale,
     RotateCw,
-    Download,
-    MinusSquare,
-    Palette,
-    Eraser as EraserIcon,
-    Type,
-    Square,
-    Smile,
-    FileImage,
-    Save
+    Download, 
+    MinusSquare, 
+    Palette, 
+    Eraser as EraserIcon, 
+    Type, 
+    Square as ShapeIcon, 
+    Smile, 
+    FileImage, 
+    Save 
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
@@ -53,7 +51,7 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null); // Reset active tool on new image
+        setActiveTool(null); 
       };
       reader.readAsDataURL(file);
     }
@@ -102,7 +100,7 @@ export default function ImageEditor() {
         return;
     }
     const link = document.createElement('a');
-    link.href = imageSrc; // In a real app, this would be the edited image data URL
+    link.href = imageSrc; 
     const originalNameParts = originalImageFile.name.split('.');
     originalNameParts.pop();
     const nameWithoutExtension = originalNameParts.join('.');
@@ -114,7 +112,7 @@ export default function ImageEditor() {
     toast({ title: "Download Started", description: `Downloading as ${newExtension.toUpperCase()} (current preview)` });
   };
 
-  const handleReset = () => {
+  const handleNewImage = () => {
     setOriginalImageFile(null);
     setImageSrc(null);
     setActiveTool(null);
@@ -122,7 +120,6 @@ export default function ImageEditor() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    // No toast needed here, the UI change is feedback enough
   };
 
   const ToolButton = ({ icon: Icon, label, toolName }: { icon: React.ElementType, label: string, toolName: string }) => (
@@ -131,7 +128,7 @@ export default function ImageEditor() {
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
-      disabled={!imageSrc && toolName !== "upload"}
+      disabled={!imageSrc} // All tools disabled if no image
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -140,19 +137,19 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100" // Takes full height of its parent
+      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
         <div className="flex items-center gap-2">
-           <Button onClick={imageSrc ? handleReset : triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
-            {imageSrc ? <FileImage className="mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+           <Button onClick={imageSrc ? handleNewImage : triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
+            {imageSrc ? <RotateCcw className="mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
             {imageSrc ? "New Image" : "Upload Image"}
           </Button>
         </div>
 
-        <div className="flex-1 text-center text-lg font-semibold text-primary dark:text-sky-400 truncate px-2">
-          Image Editor
+        <div className="flex-1 text-center">
+            <span className="text-lg font-semibold text-primary dark:text-sky-400 truncate px-2">Image Editor</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -172,7 +169,7 @@ export default function ImageEditor() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden"> {/* Main content area takes remaining space and allows internal scroll if needed */}
+      <div className="flex flex-1 overflow-hidden">
         {/* Left Tool Panel */}
         <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-2 shrink-0 overflow-y-auto">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
@@ -188,7 +185,7 @@ export default function ImageEditor() {
           <Separator className="my-3 dark:bg-neutral-700" />
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Elements</h3>
           <ToolButton icon={Type} label="Text" toolName="text" />
-          <ToolButton icon={Square} label="Shapes" toolName="shapes" />
+          <ToolButton icon={ShapeIcon} label="Shapes" toolName="shapes" />
           <ToolButton icon={Smile} label="Stickers" toolName="stickers" />
 
           <Separator className="my-3 dark:bg-neutral-700" />
@@ -197,7 +194,7 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-grow flex items-center justify-center dark:bg-black p-4 relative overflow-auto">
+        <div className="flex-grow flex flex-col items-center justify-center dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
             <div
               onClick={triggerFileInput}
@@ -218,6 +215,8 @@ export default function ImageEditor() {
               <Input type="file" ref={fileInputRef} onChange={onFileSelected} className="hidden" accept="image/*" />
             </div>
           ) : (
+            // This wrapper div should take full available space from its parent (the p-4 area)
+            // and then center the NextImage component within itself.
             <div className="relative w-full h-full flex items-center justify-center">
                <NextImage
                 src={imageSrc}
@@ -235,4 +234,4 @@ export default function ImageEditor() {
     </div>
   );
 }
-
+    
