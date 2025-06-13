@@ -135,11 +135,11 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="h-full w-full border-4 border-black  flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
-      <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
-        <div className="flex items-center gap-2">
+      <div className="h-14  border-b w-full border-4 border-black dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
+        <div className="flex items-center gap-2 border-4 border-black">
            <Button onClick={imageSrc ? handleNewImage : triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
             {imageSrc ? <RotateCcw className="mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
             {imageSrc ? "New Image" : "Upload Image"}
@@ -162,7 +162,7 @@ export default function ImageEditor() {
             </SelectContent>
           </Select>
           <Button onClick={handleDownload} size="sm" className="bg-accent hover:bg-accent/90 dark:bg-sky-500 dark:hover:bg-sky-600 dark:text-white" disabled={!imageSrc}>
-            <Save className="mr-2 h-4 w-4" /> Download
+            <Save className="mr-2 h-4 w-4" /> Download image
           </Button>
         </div>
       </div>

@@ -1,32 +1,22 @@
 
-"use client"; // Required for usePathname
+"use client"; // Required for potential client-side hooks in SiteHeader or children, though not directly used here for sidebar logic anymore
 
-// import type { Metadata } from 'next'; // Metadata type is no longer needed here
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import { SidebarProvider, Sidebar, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import SiteSidebar from '@/components/SiteSidebar';
 import SiteHeader from '@/components/SiteHeader';
-import { usePathname } from 'next/navigation';
+// import { usePathname } from 'next/navigation'; // No longer needed for sidebar logic
 
 // Metadata needs to be exported from a server component or statically.
-// Since RootLayout is now a client component, we can't export metadata directly from here.
 // For a dynamic title/description, you'd typically use the `generateMetadata` function in page.tsx files.
-// For a static one, you could define it here but it's better practice to keep RootLayout as server if possible,
-// or move this to a template.tsx if that remains server.
-// The metadata export has been removed to resolve the build error.
-// export const metadata: Metadata = {
-//   title: 'Toolify - Your Suite of Handy Online Utilities',
-//   description: 'Toolify provides a collection of easy-to-use online tools, including an image compressor, image converter, and more.',
-// };
+// Basic fallback meta tags are included directly in the <head> below.
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-  const isToolPage = pathname.startsWith('/tools/');
+  // const pathname = usePathname(); // No longer needed
+  // const isToolPage = pathname.startsWith('/tools/'); // No longer needed
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -37,19 +27,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased">
-        <SidebarProvider defaultOpen={!isToolPage}> {/* Collapse sidebar on tool pages */}
-          <div className="flex min-h-screen">
-            <SiteSidebar />
-            <SidebarInset className="flex-1 flex flex-col">
-              <SiteHeader />
-              <main className="flex-1 overflow-auto flex flex-col"> {/* Removed items-center */}
-                {children}
-              </main>
-              <Toaster />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
+      <body className="font-body antialiased w-screen flex flex-col min-h-screen">
+        <SiteHeader />
+        <main className="flex-1 flex flex-col w-full overflow-auto"> {/* Ensure main content area can grow and scroll if needed */}
+          {children}
+        </main>
+        <Toaster />
       </body>
     </html>
   );
