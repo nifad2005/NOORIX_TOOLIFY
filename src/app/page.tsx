@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ImageUp } from 'lucide-react'; // Changed icon to be more relevant
+import { ImageUp, Replace } from 'lucide-react'; 
 
 export default function HomePage() {
   return (
@@ -11,9 +11,9 @@ export default function HomePage() {
         <p className="text-xl text-muted-foreground mt-2">Your Suite of Handy Online Utilities</p>
       </header>
 
-      <section className="w-full max-w-2xl">
+      <section className="w-full max-w-4xl">
         <h2 className="text-3xl font-semibold mb-6 text-center">Available Tools</h2>
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader>
               <div className="flex items-start gap-4">
@@ -39,34 +39,34 @@ export default function HomePage() {
               </Link>
             </CardContent>
           </Card>
-          {/* You can add more tool cards here in the future */}
-          {/* Example:
+          
           <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader>
               <div className="flex items-start gap-4">
                 <div className="bg-accent/20 p-3 rounded-lg">
-                  <FileText className="w-8 h-8 text-accent" />
+                  <Replace className="w-8 h-8 text-accent" />
                 </div>
                 <div>
-                  <CardTitle className="text-2xl font-headline">Text Analyzer</CardTitle>
+                  <CardTitle className="text-2xl font-headline">Image Format Converter</CardTitle>
                   <CardDescription className="mt-1">
-                    Analyze your text for insights.
+                    Change image types (e.g., JPG to PNG).
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground mb-4">
-                Count words, characters, sentences, and get readability scores for your text content.
+                Easily convert your images between popular formats like JPEG, PNG, and WEBP. Choose your desired output type and get your converted image quickly.
               </p>
-              <Link href="/tools/text-analyzer" passHref>
-                <Button className="w-full bg-primary hover:bg-primary/90" variant="outline">
-                  Coming Soon
+              <Link href="/tools/image-converter" passHref>
+                <Button className="w-full bg-primary hover:bg-primary/90">
+                  Open Image Converter
                 </Button>
               </Link>
             </CardContent>
           </Card>
-          */}
+          
+          {/* You can add more tool cards here in the future */}
         </div>
       </section>
 
