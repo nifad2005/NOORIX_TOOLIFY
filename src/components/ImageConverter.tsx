@@ -46,13 +46,14 @@ export default function ImageConverter() {
       setOriginalImageSize(file.size);
       setOriginalImageType(file.type);
 
-      // Set initial output format different from original if possible
       if (file.type === 'image/png') {
         setOutputFormat('image/jpeg');
       } else if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
         setOutputFormat('image/png');
+      } else if (file.type === 'image/webp') {
+        setOutputFormat('image/jpeg');
       } else {
-        setOutputFormat('image/webp'); 
+        setOutputFormat('image/png'); // Default for GIF or other types
       }
 
 
@@ -88,7 +89,7 @@ export default function ImageConverter() {
     if (fileInputRef.current) {
         fileInputRef.current.value = ""; 
     }
-  }, []);
+  }, [handleFileChange]);
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -122,19 +123,16 @@ export default function ImageConverter() {
         return;
       }
       
-      canvas.width = image.width;
-      canvas.height = image.height;
+      canvas.width = image.naturalWidth; // Use naturalWidth for original dimensions
+      canvas.height = image.naturalHeight; // Use naturalHeight for original dimensions
 
-      // Fill background for formats that don't support transparency (like JPEG when converting from PNG)
       if (outputFormat === 'image/jpeg' && (originalImageType === 'image/png' || originalImageType === 'image/webp' || originalImageType === 'image/gif')) {
-        ctx.fillStyle = '#FFFFFF'; // White background
+        ctx.fillStyle = '#FFFFFF'; 
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
       
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      // For JPEG, quality is 0.0 to 1.0. For WEBP, it's also 0.0 to 1.0.
-      // We'll use a default high quality for conversion.
       const qualityParam = (outputFormat === 'image/jpeg' || outputFormat === 'image/webp') ? 0.92 : undefined;
       const convertedDataUrl = canvas.toDataURL(outputFormat, qualityParam);
       setConvertedImageSrc(convertedDataUrl);
@@ -149,7 +147,7 @@ export default function ImageConverter() {
         });
       } catch (error) {
         console.error("Error creating blob from converted image:", error);
-        setConvertedImageSize(0); // Indicate size couldn't be determined
+        setConvertedImageSize(0); 
          toast({
           title: "Conversion Partially Complete",
           description: `Image data generated for ${outputFormat.split('/')[1].toUpperCase()}. Could not determine exact new size.`,
@@ -170,7 +168,7 @@ export default function ImageConverter() {
     const link = document.createElement('a');
     link.href = convertedImageSrc;
     const originalNameParts = originalImageFile.name.split('.');
-    originalNameParts.pop(); // Remove original extension
+    originalNameParts.pop(); 
     const nameWithoutExtension = originalNameParts.join('.');
     const newExtension = outputFormat.split('/')[1] || 'bin';
     
@@ -188,7 +186,7 @@ export default function ImageConverter() {
     setConvertedImageSrc(null);
     setConvertedImageSize(0);
     setIsConverting(false);
-    setOutputFormat('image/jpeg'); // Reset to default
+    setOutputFormat('image/jpeg'); 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
