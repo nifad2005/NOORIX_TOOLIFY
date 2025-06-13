@@ -53,7 +53,7 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null);
+        setActiveTool(null); // Reset active tool on new image
       };
       reader.readAsDataURL(file);
     }
@@ -102,7 +102,7 @@ export default function ImageEditor() {
         return;
     }
     const link = document.createElement('a');
-    link.href = imageSrc;
+    link.href = imageSrc; // In a real app, this would be the edited image data URL
     const originalNameParts = originalImageFile.name.split('.');
     originalNameParts.pop();
     const nameWithoutExtension = originalNameParts.join('.');
@@ -122,7 +122,7 @@ export default function ImageEditor() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    toast({ title: "Editor Reset", description: "Upload a new image to start editing." });
+    // No toast needed here, the UI change is feedback enough
   };
 
   const ToolButton = ({ icon: Icon, label, toolName }: { icon: React.ElementType, label: string, toolName: string }) => (
@@ -131,7 +131,7 @@ export default function ImageEditor() {
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
-      disabled={!imageSrc && toolName !== "upload"} // Keep upload active
+      disabled={!imageSrc && toolName !== "upload"}
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -140,23 +140,18 @@ export default function ImageEditor() {
 
   return (
     <div
-      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
+      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100" // Takes full height of its parent
     >
       {/* Top Toolbar */}
       <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
         <div className="flex items-center gap-2">
-          {!imageSrc ? (
-            <Button onClick={triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
-              <UploadCloud className="mr-2 h-4 w-4" /> Upload Image
-            </Button>
-          ) : (
-            <Button onClick={handleReset} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
-              <FileImage className="mr-2 h-4 w-4" /> New Image
-            </Button>
-          )}
+           <Button onClick={imageSrc ? handleReset : triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
+            {imageSrc ? <FileImage className="mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+            {imageSrc ? "New Image" : "Upload Image"}
+          </Button>
         </div>
 
-        <div className="text-lg font-semibold text-primary dark:text-sky-400">
+        <div className="flex-1 text-center text-lg font-semibold text-primary dark:text-sky-400 truncate px-2">
           Image Editor
         </div>
 
@@ -177,7 +172,7 @@ export default function ImageEditor() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden"> {/* Main content area takes remaining space and allows internal scroll if needed */}
         {/* Left Tool Panel */}
         <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-2 shrink-0 overflow-y-auto">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
@@ -212,7 +207,7 @@ export default function ImageEditor() {
               className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-lg max-h-lg border-2 border-dashed rounded-lg cursor-pointer transition-colors
                 ${isDragging
                   ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
-                  : 'border-border dark:border-neutral-600 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
+                  : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
                 }`}
             >
               <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
@@ -227,17 +222,8 @@ export default function ImageEditor() {
                <NextImage
                 src={imageSrc}
                 alt="Image for editing"
-                width={0}
-                height={0}
-                sizes="100vw"
-                style={{
-                    width: 'auto',
-                    height: 'auto',
-                    maxHeight: '100%',
-                    maxWidth: '100%',
-                    objectFit: 'contain',
-                    display: 'block'
-                }}
+                fill
+                style={{ objectFit: 'contain' }}
                 unoptimized
                 data-ai-hint="uploaded image"
                 className="shadow-lg rounded"
