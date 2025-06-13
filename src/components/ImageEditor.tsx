@@ -192,9 +192,9 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-grow dark:bg-black p-4 relative overflow-auto">
+        <div className="flex-1 dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
-            <div className="w-full h-full flex items-center justify-center">
+            <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper */}
                 <div
                 onClick={triggerFileInput}
                 onDragOver={onDragOver}
@@ -215,7 +215,7 @@ export default function ImageEditor() {
                 </div>
             </div>
           ) : (
-            <div className="relative w-full h-full flex items-center justify-center">
+            <div className="relative w-full h-full"> {/* Image wrapper - removed flex centering */}
                <NextImage
                 src={imageSrc}
                 alt="Image for editing"
@@ -232,4 +232,3 @@ export default function ImageEditor() {
     </div>
   );
 }
-    
