@@ -198,7 +198,7 @@ export default function ImageConverter() {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-8">
+    <div className="w-full max-w-3xl space-y-8">
       <header className="text-center py-6">
         <h1 className="text-5xl font-bold font-headline text-primary">Toolify</h1>
         <p className="text-xl text-muted-foreground mt-2">Online Image Format Converter</p>

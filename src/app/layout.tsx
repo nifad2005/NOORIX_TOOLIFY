@@ -29,7 +29,7 @@ export default function RootLayout({
             <SiteSidebar />
             <SidebarInset className="flex-1 flex flex-col">
               <SiteHeader />
-              <main className="flex-1 p-4 md:p-6 overflow-auto">
+              <main className="flex-1 p-4 md:p-6 overflow-auto flex flex-col items-center">
                 {children}
               </main>
               <Toaster />
