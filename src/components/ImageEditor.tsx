@@ -133,13 +133,9 @@ export default function ImageEditor() {
     </Button>
   );
 
-  // Height of SiteHeader is h-16 (4rem)
-  const editorHeight = "calc(100vh - 4rem - 1px)"; // 1px for potential border
-
   return (
     <div 
-      className="w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
-      style={{ height: editorHeight }}
+      className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100"
     >
       {/* Top Toolbar */}
       <div className="h-14 border-b dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
@@ -211,7 +207,7 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-grow flex items-center justify-center bg-muted/30 dark:bg-black/30 p-4 relative overflow-auto">
+        <div className="flex-grow flex items-center justify-center bg-muted/30 dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
             <div
               onClick={triggerFileInput}
@@ -219,7 +215,10 @@ export default function ImageEditor() {
               onDragLeave={onDragLeave}
               onDrop={onDrop}
               className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-md max-h-md border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                ${isDragging ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-sky-900/30' : 'border-border dark:border-neutral-600 hover:border-primary/70 dark:hover:border-sky-500/70'}`}
+                ${isDragging 
+                  ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60' 
+                  : 'border-border dark:border-neutral-600 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
+                }`}
             >
               <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
               <p className="text-lg font-medium text-center dark:text-neutral-400">
@@ -239,7 +238,7 @@ export default function ImageEditor() {
                 style={{ 
                     width: 'auto', 
                     height: 'auto', 
-                    maxHeight: 'calc(100vh - 4rem - 2rem - 2rem)', // approx calculation for available space
+                    maxHeight: 'calc(100vh - 4rem - 1px - 2rem)', // Parent height minus top toolbar minus padding
                     maxWidth: '100%',
                     objectFit: 'contain',
                     display: 'block'
@@ -255,3 +254,4 @@ export default function ImageEditor() {
     </div>
   );
 }
+
