@@ -3,15 +3,15 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { OutputFormat, TextAlign } from '@/lib/imageEditorTypes'; // Assuming types are moved
+import { OutputFormat, TextAlign } from '@/lib/imageEditorTypes';
 import ImageEditorToolbar from './ImageEditorToolbar';
 import ImageEditorToolPanel from './ImageEditorToolPanel';
 import ImageEditorCanvas from './ImageEditorCanvas';
 
 export default function ImageEditor() {
   const [originalImageFile, setOriginalImageFile] = useState<File | null>(null);
-  const [imageSrc, setImageSrc] = useState<string | null>(null); // Data URL of the original uploaded image
-  const [currentImageElement, setCurrentImageElement] = useState<HTMLImageElement | null>(null); // Holds the current state of image (original or with baked edits)
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [currentImageElement, setCurrentImageElement] = useState<HTMLImageElement | null>(null);
 
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -25,6 +25,12 @@ export default function ImageEditor() {
   const [fontFamily, setFontFamily] = useState<string>('Arial');
   const [textAlign, setTextAlign] = useState<TextAlign>('left');
   const [isAddingText, setIsAddingText] = useState<boolean>(false);
+
+  // Color Tune state
+  const [brightness, setBrightness] = useState<number>(100);
+  const [contrast, setContrast] = useState<number>(100);
+  const [saturation, setSaturation] = useState<number>(100);
+  const [grayscale, setGrayscale] = useState<number>(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -62,6 +68,10 @@ export default function ImageEditor() {
     }
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Apply color tune filters
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) grayscale(${grayscale}%)`;
+
     ctx.save();
     
     const img = currentImageElement;
@@ -100,7 +110,9 @@ export default function ImageEditor() {
     }
     
     ctx.restore();
-  }, [currentImageElement, rotationAngle]); // canvasRef, canvasContainerRef are stable
+    ctx.filter = 'none'; // Reset filter for any subsequent direct drawing
+
+  }, [currentImageElement, rotationAngle, brightness, contrast, saturation, grayscale]); 
 
   useEffect(() => {
     if (!imageSrc) {
@@ -127,15 +139,17 @@ export default function ImageEditor() {
   }, [redrawCanvas]);
 
 
-  const resetEditorState = () => {
+  const resetEditorState = (showToast = true) => {
     setOriginalImageFile(null);
     setImageSrc(null);
-    // setCurrentImageElement(null); // This is handled by imageSrc effect
     setActiveTool(null);
     setRotationAngle(0);
     setOutputFormat('image/png');
     setTextInput('');
-    // setIsAddingText(false); // Resetting activeTool should handle UI for this
+    setBrightness(100);
+    setContrast(100);
+    setSaturation(100);
+    setGrayscale(0);
 
     const canvas = canvasRef.current;
     if (canvas) {
@@ -145,7 +159,9 @@ export default function ImageEditor() {
         }
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
-    toast({ title: "Editor Reset", description: "Ready for a new image."});
+    if (showToast) {
+        toast({ title: "Editor Reset", description: "Ready for a new image."});
+    }
   };
 
   const handleFileChange = (file: File | null) => {
@@ -154,12 +170,13 @@ export default function ImageEditor() {
         toast({ title: "Invalid File Type", description: "Please upload an image.", variant: "destructive" });
         return;
       }
-      resetEditorState(); // Reset everything before loading new image
+      resetEditorState(false); 
       setOriginalImageFile(file); 
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null);
+        setActiveTool(null); // Keep active tool or reset? Resetting for now.
+        toast({ title: "Image Loaded", description: `${file.name} is ready for editing.`});
       };
       reader.readAsDataURL(file);
     }
@@ -174,24 +191,25 @@ export default function ImageEditor() {
     setIsDragging(false);
     handleFileChange(event.dataTransfer.files?.[0] || null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, []); // handleFileChange can be added if it's memoized, but direct call is fine
+  }, []); 
 
   const handleToolClick = (toolName: string) => {
-    if (!currentImageElement && !['upload', 'text'].includes(toolName) ) { 
+    if (!currentImageElement && !['upload', 'text', 'colors'].includes(toolName) ) { 
       toast({ title: "No Image", description: "Please upload an image first.", variant: "default" });
       return;
     }
-    setActiveTool(prevTool => prevTool === toolName ? null : toolName); // Toggle or set
+    setActiveTool(prevTool => prevTool === toolName ? null : toolName);
     setIsAddingText(false); 
 
     if (toolName === "rotate") {
       if (!currentImageElement || !canvasRef.current) return;
       const newAngle = (rotationAngle + 90) % 360;
       setRotationAngle(newAngle);
-      // redrawCanvas is called by useEffect dependency on rotationAngle
       toast({ title: "Image Rotated", description: `Current angle: ${newAngle}°`});
     } else if (toolName === "text") {
        toast({ title: "Text Tool Active", description: "Configure text, click 'Prepare', then click on canvas."});
+    } else if (toolName === "colors") {
+        toast({ title: "Color Tune Active", description: "Adjust color properties using the sliders."});
     }
   };
   
@@ -207,6 +225,14 @@ export default function ImageEditor() {
     setIsAddingText(true);
   };
 
+  const handleResetColorTune = () => {
+    setBrightness(100);
+    setContrast(100);
+    setSaturation(100);
+    setGrayscale(0);
+    toast({ title: "Color Tune Reset", description: "Color adjustments have been reset to default." });
+  };
+
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (activeTool === 'text' && isAddingText && canvasRef.current && textInput.trim() !== '' && currentImageElement) {
@@ -214,7 +240,7 @@ export default function ImageEditor() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      redrawCanvas(); // Ensure current state is drawn (image with rotation)
+      redrawCanvas(); 
 
       const rect = canvas.getBoundingClientRect();
       let x = event.clientX - rect.left;
@@ -225,6 +251,14 @@ export default function ImageEditor() {
       y *= scaleY;
       
       ctx.save(); 
+      // Apply filters before drawing text if we want text to be ALSO filtered. 
+      // For now, text is drawn on top of the already filtered image.
+      // If text needs to be part of the filterable content, it needs to be drawn before main redraw
+      // or baked onto a temporary canvas then drawn as an image.
+      // Current approach: text is drawn *after* base image filters are set in redrawCanvas,
+      // but ctx.filter is reset in redrawCanvas, so text is NOT filtered.
+      // To filter text, apply filter here again or bake text into currentImageElement.
+
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillStyle = textColor;
       ctx.textAlign = textAlign; 
@@ -244,7 +278,7 @@ export default function ImageEditor() {
           if (newImg.naturalWidth === 0 || newImg.naturalHeight === 0) {
             toast({title: "Error", description: "Baked image is empty. Text not applied.", variant: "destructive"});
           } else {
-            setCurrentImageElement(newImg); // This is crucial to "bake" the text
+            setCurrentImageElement(newImg); 
             toast({ title: "Text Added", description: "Text drawn onto image." });
           }
         }
@@ -267,7 +301,9 @@ export default function ImageEditor() {
          toast({ title: "Canvas Empty", description: "No image content to download.", variant: "destructive" });
         return;
     }
-    redrawCanvas(); // Ensure latest state is on canvas
+    
+    // Ensure canvas is up-to-date with filters before downloading
+    redrawCanvas(); 
 
     let dataUrl;
     try {
@@ -292,7 +328,7 @@ export default function ImageEditor() {
   return (
     <div className="h-full w-full flex flex-col bg-background dark:bg-neutral-900 text-foreground dark:text-neutral-100">
       <ImageEditorToolbar
-        onNewImage={resetEditorState}
+        onNewImage={() => resetEditorState()}
         outputFormat={outputFormat}
         onOutputFormatChange={setOutputFormat}
         onDownload={handleDownload}
@@ -304,6 +340,7 @@ export default function ImageEditor() {
           activeTool={activeTool}
           onToolClick={handleToolClick}
           isImageLoaded={!!currentImageElement}
+          // Text tool props
           textInput={textInput}
           onTextInput={setTextInput}
           textColor={textColor}
@@ -316,6 +353,16 @@ export default function ImageEditor() {
           onTextAlignChange={setTextAlign}
           onPrepareText={handlePrepareText}
           isAddingText={isAddingText}
+          // Color Tune props
+          brightness={brightness}
+          onBrightnessChange={setBrightness}
+          contrast={contrast}
+          onContrastChange={setContrast}
+          saturation={saturation}
+          onSaturationChange={setSaturation}
+          grayscale={grayscale}
+          onGrayscaleChange={setGrayscale}
+          onResetColorTune={handleResetColorTune}
         />
         <ImageEditorCanvas
           canvasRef={canvasRef}

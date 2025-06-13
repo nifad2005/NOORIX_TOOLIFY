@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-import { Crop, Scale, RotateCw, MinusSquare, Palette, Eraser as EraserIcon, Type as TypeIcon, Square as ShapeIcon, Smile } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Crop, Scale, RotateCw, MinusSquare, Palette, Eraser as EraserIcon, Type as TypeIcon, Square as ShapeIcon, Smile, RefreshCcw } from 'lucide-react';
 import type { TextAlign } from '@/lib/imageEditorTypes';
 
 interface ImageEditorToolPanelProps {
@@ -27,9 +28,16 @@ interface ImageEditorToolPanelProps {
   onTextAlignChange: (align: TextAlign) => void;
   onPrepareText: () => void;
   isAddingText: boolean;
-  // Placeholder for future color tune props
-  // brightness: number;
-  // onBrightnessChange: (value: number) => void;
+  // Color Tune props
+  brightness: number;
+  onBrightnessChange: (value: number) => void;
+  contrast: number;
+  onContrastChange: (value: number) => void;
+  saturation: number;
+  onSaturationChange: (value: number) => void;
+  grayscale: number;
+  onGrayscaleChange: (value: number) => void;
+  onResetColorTune: () => void;
 }
 
 const ToolButton = ({ icon: Icon, label, toolName, isActive, onClick, disabled }: { icon: React.ElementType, label: string, toolName: string, isActive: boolean, onClick: () => void, disabled?: boolean }) => (
@@ -45,10 +53,29 @@ const ToolButton = ({ icon: Icon, label, toolName, isActive, onClick, disabled }
   </Button>
 );
 
+const ColorTuneSlider = ({ label, value, min, max, step, onChange, unit = "" }: { label: string, value: number, min: number, max: number, step: number, onChange: (value: number) => void, unit?: string }) => (
+    <div>
+        <div className="flex justify-between items-center mb-1">
+            <Label htmlFor={`slider-${label.toLowerCase()}`} className="text-xs dark:text-neutral-400">{label}</Label>
+            <span className="text-xs dark:text-neutral-300">{value}{unit}</span>
+        </div>
+        <Slider
+            id={`slider-${label.toLowerCase()}`}
+            min={min}
+            max={max}
+            step={step}
+            value={[value]}
+            onValueChange={(vals) => onChange(vals[0])}
+            className="w-full [&>span>span]:h-4 [&>span>span]:w-4 [&>span>span]:border-2 dark:[&>span>span]:bg-neutral-700 dark:[&>span>span]:border-sky-500"
+        />
+    </div>
+);
+
 export default function ImageEditorToolPanel({
   activeTool,
   onToolClick,
   isImageLoaded,
+  // Text
   textInput,
   onTextInput,
   textColor,
@@ -61,9 +88,20 @@ export default function ImageEditorToolPanel({
   onTextAlignChange,
   onPrepareText,
   isAddingText,
+  // Color Tune
+  brightness,
+  onBrightnessChange,
+  contrast,
+  onContrastChange,
+  saturation,
+  onSaturationChange,
+  grayscale,
+  onGrayscaleChange,
+  onResetColorTune,
 }: ImageEditorToolPanelProps) {
   
   const commonToolDisabled = !isImageLoaded;
+  const isColorToolActive = activeTool === 'colors';
 
   return (
     <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-1 shrink-0 overflow-y-auto">
@@ -74,7 +112,23 @@ export default function ImageEditorToolPanel({
 
       <Separator className="my-2 dark:bg-neutral-700" />
       <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1">Adjust</h3>
-      <ToolButton icon={Palette} label="Color Tune" toolName="colors" isActive={activeTool === 'colors'} onClick={() => onToolClick('colors')} disabled={commonToolDisabled} />
+      <ToolButton icon={Palette} label="Color Tune" toolName="colors" isActive={isColorToolActive} onClick={() => onToolClick('colors')} disabled={!isImageLoaded && !isColorToolActive} />
+      {isColorToolActive && (
+        <div className="p-2 space-y-3 border-t border-neutral-700 mt-1">
+            <ColorTuneSlider label="Brightness" value={brightness} min={0} max={200} step={1} onChange={onBrightnessChange} unit="%"/>
+            <ColorTuneSlider label="Contrast" value={contrast} min={0} max={200} step={1} onChange={onContrastChange} unit="%"/>
+            <ColorTuneSlider label="Saturation" value={saturation} min={0} max={200} step={1} onChange={onSaturationChange} unit="%"/>
+            <ColorTuneSlider label="Grayscale" value={grayscale} min={0} max={100} step={1} onChange={onGrayscaleChange} unit="%"/>
+            <Button
+                onClick={onResetColorTune}
+                variant="outline"
+                size="sm"
+                className="w-full mt-3 h-8 text-xs dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:border-neutral-600 dark:text-neutral-300"
+            >
+                <RefreshCcw className="mr-2 h-3 w-3" /> Reset Colors
+            </Button>
+        </div>
+      )}
       <ToolButton icon={MinusSquare} label="Filters" toolName="filters" isActive={activeTool === 'filters'} onClick={() => onToolClick('filters')} disabled={commonToolDisabled} />
 
       <Separator className="my-2 dark:bg-neutral-700" />
@@ -163,4 +217,3 @@ export default function ImageEditorToolPanel({
     </div>
   );
 }
-
