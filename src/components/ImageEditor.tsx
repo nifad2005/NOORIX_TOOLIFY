@@ -1,18 +1,18 @@
 
 "use client";
 
-import React, { useState, useCallback, useRef } from 'react';
-import NextImage from 'next/image';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+// Removed NextImage as we'll use a canvas for display and editing
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import {
     UploadCloud,
-    RotateCcw,
+    RotateCcw, // Keep for "New Image"
     Crop,
     Scale,
-    RotateCw,
+    RotateCw, // Icon for Rotate Tool
     MinusSquare,
     Palette,
     Eraser as EraserIcon,
@@ -27,12 +27,14 @@ type OutputFormat = 'image/jpeg' | 'image/png' | 'image/webp';
 
 export default function ImageEditor() {
   const [originalImageFile, setOriginalImageFile] = useState<File | null>(null);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null); // Original uploaded image data URL
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('image/png');
+  const [rotationAngle, setRotationAngle] = useState<number>(0); // In degrees
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   const handleFileChange = (file: File | null) => {
@@ -49,11 +51,68 @@ export default function ImageEditor() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setActiveTool(null); // Reset active tool when new image is loaded
+        setActiveTool(null);
+        setRotationAngle(0); // Reset rotation for new image
       };
       reader.readAsDataURL(file);
     }
   };
+
+  useEffect(() => {
+    if (!imageSrc || !canvasRef.current) {
+      // If there's no image or canvas isn't ready, ensure canvas is blank or hidden
+      if (canvasRef.current) {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          // Optionally set canvas display to none if no imageSrc
+          // canvas.style.display = 'none';
+        }
+      }
+      return;
+    }
+    // if (canvasRef.current) canvas.style.display = 'block';
+
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new window.Image();
+    img.onload = () => {
+      // Determine canvas dimensions based on rotation
+      const rad = rotationAngle * Math.PI / 180;
+      const absCos = Math.abs(Math.cos(rad));
+      const absSin = Math.abs(Math.sin(rad));
+
+      let newCanvasWidth = img.naturalWidth * absCos + img.naturalHeight * absSin;
+      let newCanvasHeight = img.naturalWidth * absSin + img.naturalHeight * absCos;
+      
+      // Ensure dimensions are integers
+      newCanvasWidth = Math.ceil(newCanvasWidth);
+      newCanvasHeight = Math.ceil(newCanvasHeight);
+
+      canvas.width = newCanvasWidth;
+      canvas.height = newCanvasHeight;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear before drawing
+
+      ctx.save();
+      // Translate to the center of the new canvas dimensions
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(rad);
+      // Draw the image centered around the 0,0 of the translated/rotated context
+      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+      ctx.restore();
+    };
+    img.onerror = () => {
+        toast({ title: "Error", description: "Could not load image onto canvas.", variant: "destructive" });
+    }
+    img.src = imageSrc;
+
+  }, [imageSrc, rotationAngle, toast]);
+
 
   const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -89,16 +148,32 @@ export default function ImageEditor() {
       return;
     }
     setActiveTool(toolName);
-    toast({ title: "Tool Selected", description: `${toolName} selected. Functionality to be implemented.` });
+
+    if (toolName === "rotate") {
+      setRotationAngle(prevAngle => (prevAngle + 90) % 360);
+      toast({ title: "Image Rotated", description: `Rotated 90° clockwise. Angle: ${(rotationAngle + 90) % 360}°`});
+    } else {
+      toast({ title: "Tool Selected", description: `${toolName} selected. Functionality to be implemented.` });
+    }
   };
 
   const handleDownload = () => {
-    if (!imageSrc || !originalImageFile) {
-        toast({ title: "No Image", description: "Please upload an image first.", variant: "destructive" });
+    if (!canvasRef.current || !imageSrc || !originalImageFile) {
+        toast({ title: "No Image Data", description: "Please upload and process an image first.", variant: "destructive" });
         return;
     }
+    const canvas = canvasRef.current;
+    let dataUrl;
+    try {
+        dataUrl = canvas.toDataURL(outputFormat); // Use selected output format
+    } catch (e) {
+        toast({ title: "Download Error", description: "Could not export canvas image. Try PNG format.", variant: "destructive"});
+        console.error("Canvas toDataURL error:", e);
+        return;
+    }
+
     const link = document.createElement('a');
-    link.href = imageSrc; // In a real editor, this would be the processed image data
+    link.href = dataUrl;
     const originalNameParts = originalImageFile.name.split('.');
     originalNameParts.pop();
     const nameWithoutExtension = originalNameParts.join('.');
@@ -107,13 +182,14 @@ export default function ImageEditor() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Download Started", description: `Downloading as ${newExtension.toUpperCase()} (current preview)` });
+    toast({ title: "Download Started", description: `Downloading edited image as ${newExtension.toUpperCase()}` });
   };
 
   const handleNewImage = () => {
     setOriginalImageFile(null);
-    setImageSrc(null);
+    setImageSrc(null); // This will trigger useEffect to clear canvas via logic
     setActiveTool(null);
+    setRotationAngle(0);
     setOutputFormat('image/png');
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -122,11 +198,11 @@ export default function ImageEditor() {
 
   const ToolButton = ({ icon: Icon, label, toolName }: { icon: React.ElementType, label: string, toolName: string }) => (
     <Button
-      variant={activeTool === toolName ? "secondary" : "ghost"}
+      variant={activeTool === toolName && toolName === "rotate" ? "default" : (activeTool === toolName ? "secondary" : "ghost")}
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
-      disabled={!imageSrc}
+      disabled={!imageSrc && toolName !== "upload"} // Keep upload always enabled from a logical PoV
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -140,9 +216,9 @@ export default function ImageEditor() {
       {/* Top Toolbar */}
       <div className="h-14 border-b w-full dark:border-neutral-700 p-2 flex items-center justify-between shrink-0 bg-card dark:bg-neutral-800">
         <div className="flex items-center gap-2">
-           <Button onClick={imageSrc ? handleNewImage : triggerFileInput} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
-            {imageSrc ? <RotateCcw className="mr-2 h-4 w-4" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-            {imageSrc ? "New Image" : "Upload Image"}
+           <Button onClick={handleNewImage} variant="ghost" size="sm" className="dark:text-neutral-300 dark:hover:bg-neutral-700">
+            <RotateCcw className="mr-2 h-4 w-4" />
+            New Image
           </Button>
         </div>
 
@@ -192,7 +268,7 @@ export default function ImageEditor() {
         </div>
 
         {/* Image Display Area (Canvas) */}
-        <div className="flex-1 dark:bg-black p-4 relative overflow-auto">
+        <div className="flex-grow dark:bg-black p-4 relative overflow-auto h-full">
           {!imageSrc ? (
             <div className="w-full h-full flex items-center justify-center"> {/* Placeholder wrapper - Full size */}
                 <div
@@ -206,7 +282,7 @@ export default function ImageEditor() {
                     : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
                     }`}
                 >
-                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
+                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} data-ai-hint="upload interface" />
                 <p className="text-lg font-medium text-center dark:text-neutral-400">
                     Drag & drop an image here
                 </p>
@@ -215,15 +291,13 @@ export default function ImageEditor() {
                 </div>
             </div>
           ) : (
-            <div className="relative w-full h-full"> {/* Image wrapper */}
-               <NextImage
-                src={imageSrc}
-                alt="Image for editing"
-                fill
-                style={{ objectFit: 'contain' }}
-                unoptimized
-                data-ai-hint="uploaded image"
-                className="shadow-lg rounded"
+            <div className="relative w-full h-full flex items-center justify-center"> {/* Wrapper to center canvas */}
+               <canvas
+                ref={canvasRef}
+                data-ai-hint="edited image"
+                // Style canvas to scale down, maintaining aspect ratio, within its container
+                // The actual pixel dimensions are set by canvas.width/height in JS
+                className="block max-w-full max-h-full shadow-lg rounded"
               />
             </div>
           )}
