@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Toolify - Image Compressor',
-  description: 'Easily compress your images online with Toolify. Upload, select compression level, preview, and download.',
+  title: 'Toolify - Your Suite of Handy Online Utilities',
+  description: 'Toolify provides a collection of easy-to-use online tools, including an image compressor and more.',
 };
 
 export default function RootLayout({
