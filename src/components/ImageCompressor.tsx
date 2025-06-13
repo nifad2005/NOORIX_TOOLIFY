@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -21,6 +22,7 @@ export default function ImageCompressor() {
 
   const [compressedImageSrc, setCompressedImageSrc] = useState<string | null>(null);
   const [compressedImageSize, setCompressedImageSize] = useState<number>(0);
+  const [estimatedCompressedSize, setEstimatedCompressedSize] = useState<number>(0);
 
   const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('medium');
   const [isCompressing, setIsCompressing] = useState<boolean>(false);
@@ -28,6 +30,18 @@ export default function ImageCompressor() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (originalImageSize > 0 && originalImageSrc) {
+      let reductionFactor = 0.5; // Medium (default)
+      if (compressionLevel === 'low') reductionFactor = 0.75;
+      if (compressionLevel === 'high') reductionFactor = 0.25;
+      const estimate = Math.max(1024, Math.round(originalImageSize * reductionFactor));
+      setEstimatedCompressedSize(estimate);
+    } else {
+      setEstimatedCompressedSize(0);
+    }
+  }, [originalImageSize, compressionLevel, originalImageSrc]);
 
   const handleFileChange = (file: File | null) => {
     if (file) {
@@ -48,6 +62,7 @@ export default function ImageCompressor() {
         setOriginalImageSrc(reader.result as string);
         setCompressedImageSrc(null);
         setCompressedImageSize(0);
+        // Estimate will be updated by useEffect
       };
       reader.readAsDataURL(file);
     }
@@ -73,7 +88,7 @@ export default function ImageCompressor() {
     const file = event.dataTransfer.files?.[0];
     handleFileChange(file || null);
     if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Clear the input
+        fileInputRef.current.value = ""; 
     }
   }, []);
 
@@ -85,25 +100,23 @@ export default function ImageCompressor() {
     if (!originalImageFile || !originalImageSrc) return;
 
     setIsCompressing(true);
+    setCompressedImageSrc(null); // Clear previous compressed image while new one is processing
 
-    // Simulate compression delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    let reductionFactor = 0.5; // Medium
-    if (compressionLevel === 'low') reductionFactor = 0.75; // Less compression
-    if (compressionLevel === 'high') reductionFactor = 0.25; // More compression
+    let reductionFactor = 0.5; 
+    if (compressionLevel === 'low') reductionFactor = 0.75; 
+    if (compressionLevel === 'high') reductionFactor = 0.25;
 
-    const mockCompressedSize = Math.max(1024, Math.round(originalImageSize * reductionFactor)); // Ensure not zero size
+    const mockCompressedSize = Math.max(1024, Math.round(originalImageSize * reductionFactor)); 
     
-    // For this simulation, the compressed image is the same as the original.
-    // In a real app, you'd use a library or server-side processing here.
-    setCompressedImageSrc(originalImageSrc);
+    setCompressedImageSrc(originalImageSrc); // Simulating compression: using original image data
     setCompressedImageSize(mockCompressedSize);
     setIsCompressing(false);
 
     toast({
       title: "Compression Complete!",
-      description: `Image compressed to ${formatBytes(mockCompressedSize)}.`,
+      description: `Image (simulated) compressed to ${formatBytes(mockCompressedSize)}.`,
     });
   };
 
@@ -126,6 +139,7 @@ export default function ImageCompressor() {
     setOriginalImageSize(0);
     setCompressedImageSrc(null);
     setCompressedImageSize(0);
+    setEstimatedCompressedSize(0);
     setIsCompressing(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -142,7 +156,7 @@ export default function ImageCompressor() {
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Compress Your Image</CardTitle>
-          <CardDescription>Upload an image, choose your compression level, and download the optimized version.</CardDescription>
+          <CardDescription>Upload an image, choose your compression level, and download the optimized version. This is a simulation.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {!originalImageSrc ? (
@@ -182,9 +196,19 @@ export default function ImageCompressor() {
                   {compressedImageSrc ? (
                     <>
                       <div className="relative w-full h-64 bg-muted/50 rounded-lg overflow-hidden border">
-                        <Image src={compressedImageSrc} alt="Compressed" fill style={{ objectFit: 'contain' }} unoptimized data-ai-hint="processed content" />
+                        <Image src={compressedImageSrc} alt="Compressed (Simulated)" fill style={{ objectFit: 'contain' }} unoptimized data-ai-hint="processed content" />
                       </div>
-                      <p className="text-center mt-2 text-sm text-muted-foreground">Size: {formatBytes(compressedImageSize)}</p>
+                      <p className="text-center mt-2 text-sm text-muted-foreground">
+                        Actual size: {formatBytes(compressedImageSize)}
+                        {originalImageSize > 0 && compressedImageSize > 0 && (
+                          <span className="ml-1">
+                            {originalImageSize > compressedImageSize ? 
+                              `(Saved ${formatBytes(originalImageSize - compressedImageSize)}, ${(((originalImageSize - compressedImageSize) / originalImageSize) * 100).toFixed(1)}%)` :
+                              `(Simulated: No actual size reduction in image data)`
+                            }
+                          </span>
+                        )}
+                      </p>
                     </>
                   ) : isCompressing ? (
                      <div className="relative w-full h-64 flex flex-col items-center justify-center bg-muted/50 rounded-lg border">
@@ -194,7 +218,10 @@ export default function ImageCompressor() {
                   ) : (
                     <div className="relative w-full h-64 flex flex-col items-center justify-center bg-muted/50 rounded-lg border text-muted-foreground">
                       <ImageIcon className="w-16 h-16 mb-2" data-ai-hint="image placeholder" />
-                      <p>Preview will appear here</p>
+                      <p>Preview will appear after compression</p>
+                      {originalImageSrc && !isCompressing && estimatedCompressedSize > 0 && (
+                        <p className="text-sm mt-1">Estimated compressed size: {formatBytes(estimatedCompressedSize)}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -204,7 +231,15 @@ export default function ImageCompressor() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <Label htmlFor="compression-level" className="text-sm font-medium">Compression Level</Label>
-                    <Select value={compressionLevel} onValueChange={(value: string) => setCompressionLevel(value as CompressionLevel)}>
+                    <Select 
+                        value={compressionLevel} 
+                        onValueChange={(value: string) => {
+                            setCompressionLevel(value as CompressionLevel);
+                            setCompressedImageSrc(null); // Clear previous compressed image when level changes
+                            setCompressedImageSize(0);
+                        }}
+                        disabled={isCompressing}
+                    >
                       <SelectTrigger id="compression-level" className="w-full sm:w-[180px] mt-1">
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
@@ -215,7 +250,7 @@ export default function ImageCompressor() {
                       </SelectContent>
                     </Select>
                   </div>
-                   <Button onClick={handleCompressImage} disabled={isCompressing} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+                   <Button onClick={handleCompressImage} disabled={isCompressing || !originalImageSrc} className="w-full sm:w-auto bg-primary hover:bg-primary/90">
                     {isCompressing ? 'Compressing...' : 'Compress Image'}
                   </Button>
                 </div>
@@ -238,3 +273,6 @@ export default function ImageCompressor() {
     </div>
   );
 }
+
+
+    
