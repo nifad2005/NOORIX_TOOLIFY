@@ -32,23 +32,39 @@ export default function ImageCompressor() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (originalImageSize > 0 && originalImageSrc) {
-      let reductionFactor = 0.5; // Medium (default)
-      if (compressionLevel === 'low') reductionFactor = 0.75;
-      if (compressionLevel === 'high') reductionFactor = 0.25;
-      const estimate = Math.max(1024, Math.round(originalImageSize * reductionFactor));
+    if (originalImageSize > 0 && originalImageSrc && originalImageFile) {
+      let qualityFactor = 0.7; // Medium (default for JPEG/WEBP)
+      let scaleFactor = 0.7;   // Medium (default for PNG/other or dimension reduction)
+
+      if (compressionLevel === 'low') {
+        qualityFactor = 0.9;
+        scaleFactor = 0.85;
+      } else if (compressionLevel === 'high') {
+        qualityFactor = 0.5;
+        scaleFactor = 0.5;
+      }
+      
+      // Estimate based on area reduction for non-JPEGs, or quality for JPEGs
+      let estimate;
+      if (originalImageFile.type === 'image/jpeg' || originalImageFile.type === 'image/webp') {
+        // JPEGs/WEBPs are more complex, quality factor is a rough guide
+        estimate = Math.max(1024, Math.round(originalImageSize * qualityFactor * 0.8)); // 0.8 as an empirical factor
+      } else {
+         // For PNGs, estimate based on pixel area reduction (scaleFactor^2)
+        estimate = Math.max(1024, Math.round(originalImageSize * scaleFactor * scaleFactor));
+      }
       setEstimatedCompressedSize(estimate);
     } else {
       setEstimatedCompressedSize(0);
     }
-  }, [originalImageSize, compressionLevel, originalImageSrc]);
+  }, [originalImageSize, compressionLevel, originalImageSrc, originalImageFile]);
 
   const handleFileChange = (file: File | null) => {
     if (file) {
       if (!file.type.startsWith('image/')) {
         toast({
           title: "Invalid File Type",
-          description: "Please upload an image file (e.g., PNG, JPG, GIF).",
+          description: "Please upload an image file (e.g., PNG, JPG, GIF, WEBP).",
           variant: "destructive",
         });
         return;
@@ -62,7 +78,6 @@ export default function ImageCompressor() {
         setOriginalImageSrc(reader.result as string);
         setCompressedImageSrc(null);
         setCompressedImageSize(0);
-        // Estimate will be updated by useEffect
       };
       reader.readAsDataURL(file);
     }
@@ -100,24 +115,77 @@ export default function ImageCompressor() {
     if (!originalImageFile || !originalImageSrc) return;
 
     setIsCompressing(true);
-    setCompressedImageSrc(null); // Clear previous compressed image while new one is processing
+    setCompressedImageSrc(null); 
+    setCompressedImageSize(0);
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const image = new window.Image();
+    image.src = originalImageSrc;
 
-    let reductionFactor = 0.5; 
-    if (compressionLevel === 'low') reductionFactor = 0.75; 
-    if (compressionLevel === 'high') reductionFactor = 0.25;
+    image.onload = async () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        toast({ title: "Error", description: "Could not process image.", variant: "destructive" });
+        setIsCompressing(false);
+        return;
+      }
 
-    const mockCompressedSize = Math.max(1024, Math.round(originalImageSize * reductionFactor)); 
-    
-    setCompressedImageSrc(originalImageSrc); // Simulating compression: using original image data
-    setCompressedImageSize(mockCompressedSize);
-    setIsCompressing(false);
+      let quality = 0.7; // Corresponds to 'medium' for JPEG/WEBP
+      let scaleFactor = 0.7; // Corresponds to 'medium' for scaling
 
-    toast({
-      title: "Compression Complete!",
-      description: `Image (simulated) compressed to ${formatBytes(mockCompressedSize)}.`,
-    });
+      switch (compressionLevel) {
+        case 'low':
+          quality = 0.9;
+          scaleFactor = 0.85;
+          break;
+        case 'high':
+          quality = 0.5;
+          scaleFactor = 0.5;
+          break;
+        case 'medium':
+        default:
+          quality = 0.7;
+          scaleFactor = 0.7;
+          break;
+      }
+
+      const outputMimeType = (originalImageFile.type === 'image/png') ? 'image/png' : 'image/jpeg';
+      
+      canvas.width = image.width * scaleFactor;
+      canvas.height = image.height * scaleFactor;
+
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const compressedDataUrl = canvas.toDataURL(outputMimeType, outputMimeType === 'image/jpeg' ? quality : undefined);
+      setCompressedImageSrc(compressedDataUrl);
+
+      // Calculate new size
+      // Estimate by base64 string length (rough) or convert to Blob for more accuracy
+      // For simplicity, using a method to get size from data URL
+      try {
+        const response = await fetch(compressedDataUrl);
+        const blob = await response.blob();
+        setCompressedImageSize(blob.size);
+         toast({
+          title: "Compression Complete!",
+          description: `Image compressed to ${formatBytes(blob.size)}.`,
+        });
+      } catch (error) {
+        console.error("Error creating blob from compressed image:", error);
+        setCompressedImageSize(0); // Fallback or could use estimated size. Here just 0
+         toast({
+          title: "Compression Partially Complete",
+          description: `Image data generated. Could not determine exact new size.`,
+          variant: "default"
+        });
+      }
+      setIsCompressing(false);
+    };
+
+    image.onerror = () => {
+      toast({ title: "Error", description: "Could not load image for compression.", variant: "destructive" });
+      setIsCompressing(false);
+    };
   };
 
   const handleDownload = () => {
@@ -125,7 +193,7 @@ export default function ImageCompressor() {
     const link = document.createElement('a');
     link.href = compressedImageSrc;
     const originalNameParts = originalImageFile.name.split('.');
-    const extension = originalNameParts.pop();
+    const extension = originalImageFile.type.split('/')[1] || originalNameParts.pop() || 'compressed';
     const nameWithoutExtension = originalNameParts.join('.');
     link.download = `${nameWithoutExtension}_compressed.${extension}`;
     document.body.appendChild(link);
@@ -156,7 +224,7 @@ export default function ImageCompressor() {
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Compress Your Image</CardTitle>
-          <CardDescription>Upload an image, choose your compression level, and download the optimized version. This is a simulation.</CardDescription>
+          <CardDescription>Upload an image, choose your compression level, and download the optimized version.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {!originalImageSrc ? (
@@ -187,7 +255,7 @@ export default function ImageCompressor() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2 text-center">Original Image</h3>
                   <div className="relative w-full h-64 bg-muted/50 rounded-lg overflow-hidden border">
-                    <Image src={originalImageSrc} alt="Original" fill style={{ objectFit: 'contain' }} unoptimized data-ai-hint="uploaded content" />
+                    {originalImageSrc && <Image src={originalImageSrc} alt="Original" fill style={{ objectFit: 'contain' }} unoptimized data-ai-hint="uploaded content" />}
                   </div>
                   <p className="text-center mt-2 text-sm text-muted-foreground">Size: {formatBytes(originalImageSize)}</p>
                 </div>
@@ -196,7 +264,7 @@ export default function ImageCompressor() {
                   {compressedImageSrc ? (
                     <>
                       <div className="relative w-full h-64 bg-muted/50 rounded-lg overflow-hidden border">
-                        <Image src={compressedImageSrc} alt="Compressed (Simulated)" fill style={{ objectFit: 'contain' }} unoptimized data-ai-hint="processed content" />
+                        <Image src={compressedImageSrc} alt="Compressed" fill style={{ objectFit: 'contain' }} unoptimized data-ai-hint="processed content" />
                       </div>
                       <p className="text-center mt-2 text-sm text-muted-foreground">
                         Actual size: {formatBytes(compressedImageSize)}
@@ -204,7 +272,7 @@ export default function ImageCompressor() {
                           <span className="ml-1">
                             {originalImageSize > compressedImageSize ? 
                               `(Saved ${formatBytes(originalImageSize - compressedImageSize)}, ${(((originalImageSize - compressedImageSize) / originalImageSize) * 100).toFixed(1)}%)` :
-                              `(Simulated: No actual size reduction in image data)`
+                              `(No size reduction achieved or size increased)`
                             }
                           </span>
                         )}
@@ -213,14 +281,14 @@ export default function ImageCompressor() {
                   ) : isCompressing ? (
                      <div className="relative w-full h-64 flex flex-col items-center justify-center bg-muted/50 rounded-lg border">
                         <p className="text-muted-foreground mb-2">Compressing...</p>
-                        <Progress value={undefined} className="w-3/4 animate-pulse" />
+                        <Progress value={undefined} className="w-3/4 animate-pulse" /> {/* Indeterminate progress */}
                      </div>
                   ) : (
                     <div className="relative w-full h-64 flex flex-col items-center justify-center bg-muted/50 rounded-lg border text-muted-foreground">
                       <ImageIcon className="w-16 h-16 mb-2" data-ai-hint="image placeholder" />
                       <p>Preview will appear after compression</p>
                       {originalImageSrc && !isCompressing && estimatedCompressedSize > 0 && (
-                        <p className="text-sm mt-1">Estimated compressed size: {formatBytes(estimatedCompressedSize)}</p>
+                        <p className="text-sm mt-1">Estimated compressed size: ~{formatBytes(estimatedCompressedSize)}</p>
                       )}
                     </div>
                   )}
@@ -235,7 +303,7 @@ export default function ImageCompressor() {
                         value={compressionLevel} 
                         onValueChange={(value: string) => {
                             setCompressionLevel(value as CompressionLevel);
-                            setCompressedImageSrc(null); // Clear previous compressed image when level changes
+                            setCompressedImageSrc(null); 
                             setCompressedImageSize(0);
                         }}
                         disabled={isCompressing}
@@ -244,7 +312,7 @@ export default function ImageCompressor() {
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low (Larger Size)</SelectItem>
+                        <SelectItem value="low">Low (Better Quality)</SelectItem>
                         <SelectItem value="medium">Medium (Balanced)</SelectItem>
                         <SelectItem value="high">High (Smaller Size)</SelectItem>
                       </SelectContent>
@@ -254,7 +322,7 @@ export default function ImageCompressor() {
                     {isCompressing ? 'Compressing...' : 'Compress Image'}
                   </Button>
                 </div>
-                {isCompressing && <Progress value={undefined} className="w-full transition-opacity duration-300" />}
+                {isCompressing && <Progress value={undefined} className="w-full transition-opacity duration-300 animate-pulse" />}
               </div>
             </div>
           )}
@@ -273,6 +341,5 @@ export default function ImageCompressor() {
     </div>
   );
 }
-
 
     
