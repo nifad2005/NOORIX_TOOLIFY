@@ -123,8 +123,8 @@ export default function ImageConverter() {
         return;
       }
       
-      canvas.width = image.naturalWidth; // Use naturalWidth for original dimensions
-      canvas.height = image.naturalHeight; // Use naturalHeight for original dimensions
+      canvas.width = image.naturalWidth; 
+      canvas.height = image.naturalHeight;
 
       if (outputFormat === 'image/jpeg' && (originalImageType === 'image/png' || originalImageType === 'image/webp' || originalImageType === 'image/gif')) {
         ctx.fillStyle = '#FFFFFF'; 
@@ -133,7 +133,12 @@ export default function ImageConverter() {
       
       ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-      const qualityParam = (outputFormat === 'image/jpeg' || outputFormat === 'image/webp') ? 0.92 : undefined;
+      let qualityParam: number | undefined;
+      if (outputFormat === 'image/jpeg' || outputFormat === 'image/webp') {
+        qualityParam = 1.0; // Use highest quality for JPEG/WEBP to minimize file size changes from compression
+      }
+      // For PNG, qualityParam is not applicable/ignored by toDataURL, it's inherently lossless.
+      
       const convertedDataUrl = canvas.toDataURL(outputFormat, qualityParam);
       setConvertedImageSrc(convertedDataUrl);
 
@@ -315,3 +320,5 @@ export default function ImageConverter() {
     </div>
   );
 }
+
+    
