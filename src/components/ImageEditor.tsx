@@ -128,7 +128,7 @@ export default function ImageEditor() {
       className="w-full justify-start text-sm h-9 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:data-[state=active]:bg-neutral-600"
       onClick={() => handleToolClick(toolName)}
       title={label}
-      disabled={!imageSrc} // All tools disabled if no image
+      disabled={!imageSrc}
     >
       <Icon className="mr-2 h-4 w-4" />
       {label}
@@ -196,27 +196,28 @@ export default function ImageEditor() {
         {/* Image Display Area (Canvas) */}
         <div className="flex-grow flex flex-col items-center justify-center dark:bg-black p-4 relative overflow-auto">
           {!imageSrc ? (
-            <div
-              onClick={triggerFileInput}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-              onDrop={onDrop}
-              className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-lg max-h-lg border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                ${isDragging
-                  ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
-                  : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
-                }`}
-            >
-              <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
-              <p className="text-lg font-medium text-center dark:text-neutral-400">
-                Drag & drop an image here
-              </p>
-              <p className="text-sm text-muted-foreground dark:text-neutral-500 mt-1">or click to select file</p>
-              <Input type="file" ref={fileInputRef} onChange={onFileSelected} className="hidden" accept="image/*" />
+            // This is the parent of the placeholder, it ensures the placeholder is centered within the black canvas
+            <div className="relative w-full h-full flex items-center justify-center">
+                <div
+                onClick={triggerFileInput}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+                className={`flex flex-col items-center justify-center p-10 w-full h-full max-w-2xl max-h-xl border-2 border-dashed rounded-lg cursor-pointer transition-colors
+                    ${isDragging
+                    ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
+                    : 'border-border dark:border-neutral-600 bg-muted/30 dark:bg-neutral-800/20 hover:border-primary/70 dark:hover:border-sky-500/70'
+                    }`}
+                >
+                <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary dark:text-sky-400' : 'text-muted-foreground dark:text-neutral-500'}`} />
+                <p className="text-lg font-medium text-center dark:text-neutral-400">
+                    Drag & drop an image here
+                </p>
+                <p className="text-sm text-muted-foreground dark:text-neutral-500 mt-1">or click to select file</p>
+                <Input type="file" ref={fileInputRef} onChange={onFileSelected} className="hidden" accept="image/*" />
+                </div>
             </div>
           ) : (
-            // This wrapper div should take full available space from its parent (the p-4 area)
-            // and then center the NextImage component within itself.
             <div className="relative w-full h-full flex items-center justify-center">
                <NextImage
                 src={imageSrc}
