@@ -41,91 +41,101 @@ export default function ImageEditor() {
     const canvas = canvasRef.current;
     const container = canvasContainerRef.current;
 
-    if (!canvas || !container) {
-      return;
-    }
+    if (!canvas || !container) return;
     
-    const newCanvasWidth = container.clientWidth;
-    const newCanvasHeight = container.clientHeight;
+    const currentContainerWidth = container.clientWidth;
+    const currentContainerHeight = container.clientHeight;
 
-    if (newCanvasWidth === 0 || newCanvasHeight === 0) {
-        if (canvas.width > 0 || canvas.height > 0) {
-            const ctx = canvas.getContext('2d');
-            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+    if (currentContainerWidth <= 0 || currentContainerHeight <= 0) {
+      if (canvas.width > 0 || canvas.height > 0) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
       return;
     }
     
-    canvas.width = newCanvasWidth;
-    canvas.height = newCanvasHeight;
+    canvas.width = currentContainerWidth;
+    canvas.height = currentContainerHeight;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (!currentImageElement || currentImageElement.naturalWidth === 0 || currentImageElement.naturalHeight === 0) {
+    if (!currentImageElement || currentImageElement.naturalWidth <= 0 || currentImageElement.naturalHeight <= 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         return;
     }
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Apply color tune filters
-    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) grayscale(${grayscale}%)`;
-
     const img = currentImageElement;
 
-    // Optimization: If the image is already the size of the canvas and not rotated, draw directly.
+    ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) grayscale(${grayscale}%)`;
+
     if (img.naturalWidth === canvas.width &&
         img.naturalHeight === canvas.height &&
         rotationAngle === 0) {
+      // OPTIMIZATION: Image is already the exact size of the canvas and not rotated.
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     } else {
+      // General case: image needs scaling and/or rotation.
       ctx.save();
       
       const canvasW = canvas.width;
       const canvasH = canvas.height;
+      const imgNaturalWidth = img.naturalWidth;
+      const imgNaturalHeight = img.naturalHeight;
 
-      let imgNaturalWidth = img.naturalWidth;
-      let imgNaturalHeight = img.naturalHeight;
+      let displayWidth;
+      let displayHeight;
 
-      let fittingImgWidth = imgNaturalWidth;
-      let fittingImgHeight = imgNaturalHeight;
+      const imgAspect = imgNaturalWidth / imgNaturalHeight;
+      const canvasAspect = canvasW / canvasH;
+
       if (rotationAngle === 90 || rotationAngle === 270) {
-          fittingImgWidth = imgNaturalHeight;
-          fittingImgHeight = imgNaturalWidth;
+        const rotatedImgAspect = imgNaturalHeight / imgNaturalWidth; // Aspect of the image if it were rotated
+        if (rotatedImgAspect > canvasAspect) { // Rotated image is "wider" than canvas container
+          displayWidth = canvasW;
+          displayHeight = displayWidth / rotatedImgAspect;
+        } else { // Rotated image is "taller" or same aspect as canvas container
+          displayHeight = canvasH;
+          displayWidth = displayHeight * rotatedImgAspect;
+        }
+      } else {
+        // No rotation or 180 deg rotation (aspect ratio remains the same)
+        if (imgAspect > canvasAspect) { // Image is "wider" than canvas container
+          displayWidth = canvasW;
+          displayHeight = displayWidth / imgAspect;
+        } else { // Image is "taller" or same aspect as canvas container
+          displayHeight = canvasH;
+          displayWidth = displayHeight * imgAspect;
+        }
       }
       
-      const imgRatio = fittingImgWidth / fittingImgHeight;
-      const canvasRatio = canvasW / canvasH;
-      let drawW, drawH;
+      displayWidth = Math.max(1, Math.floor(displayWidth));
+      displayHeight = Math.max(1, Math.floor(displayHeight));
 
-      if (imgRatio > canvasRatio) { 
-        drawW = canvasW;
-        drawH = drawW / imgRatio;
-      } else { 
-        drawH = canvasH;
-        drawW = drawH * imgRatio;
-      }
-      
       ctx.translate(canvasW / 2, canvasH / 2);
       ctx.rotate(rotationAngle * Math.PI / 180);
       
-      if (rotationAngle === 90 || rotationAngle === 270) {
-          ctx.drawImage(img, -drawH / 2, -drawW / 2, drawH, drawW);
-      } else {
-          ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
-      }
+      ctx.drawImage(img, 
+                    0, 0, imgNaturalWidth, imgNaturalHeight, // Source rect (full image)
+                    -displayWidth / 2, -displayHeight / 2, displayWidth, displayHeight // Destination rect (centered and scaled)
+                   );
       
       ctx.restore();
     }
     
-    ctx.filter = 'none'; // Reset filter for any subsequent direct drawing
-
+    ctx.filter = 'none';
   }, [currentImageElement, rotationAngle, brightness, contrast, saturation, grayscale]); 
 
   useEffect(() => {
     if (!imageSrc) {
       setCurrentImageElement(null);
+      // Ensure canvas is cleared if imageSrc is removed after an image was present
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0,0, canvas.width, canvas.height);
+      }
       return;
     }
     const img = new window.Image();
@@ -145,15 +155,15 @@ export default function ImageEditor() {
     const handleResize = () => redrawCanvas();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [redrawCanvas]);
+  }, [redrawCanvas]); // redrawCanvas itself now depends on all visual states
 
 
   const resetEditorState = (showToast = true) => {
     setOriginalImageFile(null);
     setImageSrc(null);
-    // currentImageElement will be reset by imageSrc effect
+    // currentImageElement will be reset by imageSrc effect, which also triggers redrawCanvas
     setActiveTool(null);
-    setRotationAngle(0);
+    setRotationAngle(0); // This will trigger redrawCanvas
     setOutputFormat('image/png');
     setTextInput('');
     setTextColor('#FFFFFF');
@@ -164,8 +174,9 @@ export default function ImageEditor() {
     setBrightness(100);
     setContrast(100);
     setSaturation(100);
-    setGrayscale(0);
+    setGrayscale(0); // These color changes will trigger redrawCanvas
 
+    // Explicitly clear canvas after state reset in case currentImageElement doesn't change enough to trigger clear
     const canvas = canvasRef.current;
     if (canvas) {
         const ctx = canvas.getContext('2d');
@@ -189,8 +200,7 @@ export default function ImageEditor() {
       setOriginalImageFile(file); 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageSrc(reader.result as string);
-        // activeTool is reset in resetEditorState
+        setImageSrc(reader.result as string); // This triggers image load and first redraw
         toast({ title: "Image Loaded", description: `${file.name} is ready for editing.`});
       };
       reader.readAsDataURL(file);
@@ -218,9 +228,8 @@ export default function ImageEditor() {
 
     if (toolName === "rotate") {
       if (!currentImageElement || !canvasRef.current) return;
-      const newAngle = (rotationAngle + 90) % 360;
-      setRotationAngle(newAngle); // This will trigger redrawCanvas via useEffect
-      toast({ title: "Image Rotated", description: `Current angle: ${newAngle}°`});
+      setRotationAngle(prevAngle => (prevAngle + 90) % 360); // This will trigger redrawCanvas
+      // Toast message moved to useEffect that watches rotationAngle if needed for feedback
     } else if (toolName === "text") {
        toast({ title: "Text Tool Active", description: "Configure text, click 'Prepare', then click on canvas."});
     } else if (toolName === "colors") {
@@ -256,28 +265,34 @@ export default function ImageEditor() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      redrawCanvas(); // Ensure canvas is up-to-date with filters/rotation before adding text
+      // Redraw canvas with current state (filters, rotation) BEFORE adding text
+      // This ensures text is added on top of the correctly transformed image
+      redrawCanvas(); 
 
       const rect = canvas.getBoundingClientRect();
       let x = event.clientX - rect.left;
       let y = event.clientY - rect.top;
+      
+      // Scale click coordinates to canvas's actual pixel dimensions
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
       x *= scaleX;
       y *= scaleY;
       
       ctx.save(); 
-      // Text is NOT filtered by canvas filter; it's drawn on top of the already filtered image.
+      // Text drawing settings
       ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillStyle = textColor;
       ctx.textAlign = textAlign; 
       ctx.textBaseline = 'middle'; 
+      // Apply text (not affected by global canvas filter at this point as it's drawn after)
       ctx.fillText(textInput, x, y);
       ctx.restore(); 
 
+      // Bake the text into currentImageElement by updating it with the canvas data
       try {
         const newImgDataUrl = canvas.toDataURL(outputFormat); 
-        if (newImgDataUrl === "data:,") {
+        if (newImgDataUrl === "data:,") { // Check for empty data URL
             toast({title: "Error", description: "Could not bake text. Canvas may be empty.", variant: "destructive"});
             setIsAddingText(false);
             return;
@@ -287,7 +302,8 @@ export default function ImageEditor() {
           if (newImg.naturalWidth === 0 || newImg.naturalHeight === 0) {
             toast({title: "Error", description: "Baked image is empty. Text not applied.", variant: "destructive"});
           } else {
-            setCurrentImageElement(newImg); // This causes redrawCanvas via useEffect
+            setRotationAngle(0); // After baking, the "currentImageElement" is effectively unrotated
+            setCurrentImageElement(newImg); // This will trigger redrawCanvas via useEffect
             toast({ title: "Text Added", description: "Text drawn onto image." });
           }
         }
@@ -306,7 +322,9 @@ export default function ImageEditor() {
         return;
     }
     const canvas = canvasRef.current;
+    
     // Ensure canvas is explicitly redrawn with latest state before download
+    // This is crucial because component state changes might not have triggered the last redrawCanvas immediately
     redrawCanvas();
 
     if (canvas.width <= 1 || canvas.height <= 1 || (currentImageElement && currentImageElement.naturalWidth === 0)) { 
@@ -317,7 +335,7 @@ export default function ImageEditor() {
     let dataUrl;
     try {
         dataUrl = canvas.toDataURL(outputFormat);
-        if (dataUrl === "data:,") throw new Error("Canvas is empty");
+        if (dataUrl === "data:,") throw new Error("Canvas is empty"); // Check for empty data URL again
     } catch (e) {
         toast({ title: "Download Error", description: `Could not export image. Try PNG. ${e instanceof Error ? e.message : String(e)}`, variant: "destructive"});
         return;
@@ -344,7 +362,7 @@ export default function ImageEditor() {
         isImageLoaded={!!currentImageElement}
       />
 
-      <div className="flex flex-1 overflow-hidden h-full">
+      <div className="flex flex-1 overflow-hidden h-full"> {/* Parent of Tool Panel & Image Canvas */}
         <ImageEditorToolPanel
           activeTool={activeTool}
           onToolClick={handleToolClick}
