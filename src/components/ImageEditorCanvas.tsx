@@ -9,14 +9,19 @@ interface ImageEditorCanvasProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   canvasContainerRef: React.RefObject<HTMLDivElement>;
   currentImageElement: HTMLImageElement | null;
-  isDragging: boolean;
+  isDragging: boolean; // For file drag/drop
   onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
   onDragLeave: () => void;
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   triggerFileInput: () => void;
   onCanvasClick: (event: React.MouseEvent<HTMLCanvasElement>) => void;
+  onCanvasMouseDown: (event: React.MouseEvent<HTMLCanvasElement>) => void;
+  onCanvasMouseMove: (event: React.MouseEvent<HTMLCanvasElement>) => void;
+  onCanvasMouseUp: (event: React.MouseEvent<HTMLCanvasElement>) => void;
+  onCanvasMouseLeave: (event: React.MouseEvent<HTMLCanvasElement>) => void;
   activeTool: string | null;
-  isAddingText: boolean;
+  isAddingText: boolean; // For text tool cursor
+  isCropping?: boolean; // For crop tool cursor
   fileInputRef: React.RefObject<HTMLInputElement>;
   onFileSelected: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -31,22 +36,37 @@ export default function ImageEditorCanvas({
   onDrop,
   triggerFileInput,
   onCanvasClick,
+  onCanvasMouseDown,
+  onCanvasMouseMove,
+  onCanvasMouseUp,
+  onCanvasMouseLeave,
   activeTool,
   isAddingText,
+  isCropping,
   fileInputRef,
   onFileSelected,
 }: ImageEditorCanvasProps) {
+  
+  let cursorStyle = 'default';
+  if (activeTool === 'text' && isAddingText) {
+    cursorStyle = 'crosshair';
+  } else if (activeTool === 'crop') {
+    cursorStyle = 'crosshair';
+  }
+
+
   return (
     <div
       ref={canvasContainerRef}
-      className="flex-grow dark:bg-black p-4 relative overflow-auto h-full flex items-center justify-center" // Added flex items-center justify-center
+      className="flex-grow dark:bg-black p-4 relative overflow-auto h-full flex items-center justify-center" 
+      onDragOver={onDragOver} // Moved from placeholder to container for broader drop target
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       {!currentImageElement ? (
-        <div // This div will be centered by the parent's flex properties
+        <div 
           onClick={triggerFileInput}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
+          // Drag events are now on the parent for a larger drop zone
           className={`flex flex-col items-center justify-center p-10 max-w-2xl max-h-xl border-2 border-dashed rounded-lg cursor-pointer transition-colors
             ${isDragging
               ? 'border-primary bg-primary/10 dark:border-sky-500 dark:bg-gradient-to-br dark:from-sky-700/40 dark:to-sky-900/60'
@@ -67,16 +87,20 @@ export default function ImageEditorCanvas({
         <canvas
           ref={canvasRef}
           onClick={onCanvasClick}
+          onMouseDown={onCanvasMouseDown}
+          onMouseMove={onCanvasMouseMove}
+          onMouseUp={onCanvasMouseUp}
+          onMouseLeave={onCanvasMouseLeave}
           data-ai-hint="edited image content"
-          className="block shadow-lg rounded" // 'block' is important for max-width/height to work correctly
+          className="block shadow-lg rounded" 
           style={{
-            cursor: activeTool === 'text' && isAddingText ? 'crosshair' : 'default',
+            cursor: cursorStyle,
             maxWidth: '100%',
             maxHeight: '100%',
-            // width and height attributes are set by redrawCanvas in ImageEditor.tsx
           }}
         />
       )}
     </div>
   );
 }
+

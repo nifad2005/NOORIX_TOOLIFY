@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Crop, Scale, RotateCw, MinusSquare, Palette, Eraser as EraserIcon, Type as TypeIcon, Square as ShapeIcon, Smile, RefreshCcw } from 'lucide-react';
+import { Crop, Scale, RotateCw, MinusSquare, Palette, Eraser as EraserIcon, Type as TypeIcon, Square as ShapeIcon, Smile, RefreshCcw, CheckCircle, XCircle } from 'lucide-react';
 import type { TextAlign } from '@/lib/imageEditorTypes';
 
 interface ImageEditorToolPanelProps {
@@ -40,6 +40,10 @@ interface ImageEditorToolPanelProps {
   hueRotate: number;
   onHueRotateChange: (value: number) => void;
   onResetColorTune: () => void;
+  // Crop tool props
+  onApplyCrop: () => void;
+  onCancelCrop: () => void;
+  isCropAreaSelected: boolean;
 }
 
 const ToolButton = ({ icon: Icon, label, toolName, isActive, onClick, disabled }: { icon: React.ElementType, label: string, toolName: string, isActive: boolean, onClick: () => void, disabled?: boolean }) => (
@@ -102,15 +106,41 @@ export default function ImageEditorToolPanel({
   hueRotate,
   onHueRotateChange,
   onResetColorTune,
+  // Crop
+  onApplyCrop,
+  onCancelCrop,
+  isCropAreaSelected,
 }: ImageEditorToolPanelProps) {
   
   const commonToolDisabled = !isImageLoaded;
   const isColorToolActive = activeTool === 'colors';
+  const isCropToolActive = activeTool === 'crop';
 
   return (
     <div className="w-60 bg-card dark:bg-neutral-800 border-r dark:border-neutral-700 p-3 space-y-1 shrink-0 overflow-y-auto">
       <h3 className="text-xs font-semibold uppercase text-muted-foreground dark:text-neutral-500 px-1 pt-1">Transform</h3>
-      <ToolButton icon={Crop} label="Crop" toolName="crop" isActive={activeTool === 'crop'} onClick={() => onToolClick('crop')} disabled={commonToolDisabled} />
+      <ToolButton icon={Crop} label="Crop" toolName="crop" isActive={isCropToolActive} onClick={() => onToolClick('crop')} disabled={commonToolDisabled} />
+       {isCropToolActive && isImageLoaded && (
+        <div className="p-2 space-y-2 border-t border-neutral-700 mt-1">
+          <p className="text-xs text-center dark:text-neutral-400">Drag on image to select area.</p>
+          <Button
+            onClick={onApplyCrop}
+            disabled={!isCropAreaSelected}
+            size="sm"
+            className="w-full h-8 text-xs bg-primary/80 hover:bg-primary dark:bg-sky-600 dark:hover:bg-sky-500"
+          >
+            <CheckCircle className="mr-2 h-4 w-4" /> Apply Crop
+          </Button>
+          <Button
+            onClick={onCancelCrop}
+            variant="outline"
+            size="sm"
+            className="w-full h-8 text-xs dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:border-neutral-600 dark:text-neutral-300"
+          >
+            <XCircle className="mr-2 h-4 w-4" /> Cancel Crop
+          </Button>
+        </div>
+      )}
       <ToolButton icon={Scale} label="Resize" toolName="resize" isActive={activeTool === 'resize'} onClick={() => onToolClick('resize')} disabled={commonToolDisabled} />
       <ToolButton icon={RotateCw} label="Rotate 90°" toolName="rotate" isActive={activeTool === 'rotate'} onClick={() => onToolClick('rotate')} disabled={commonToolDisabled} />
 
@@ -222,5 +252,4 @@ export default function ImageEditorToolPanel({
     </div>
   );
 }
-
     
