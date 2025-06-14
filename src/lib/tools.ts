@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { ImageIcon, Replace, Music, Video, Code2, FileText, Sparkles, ImageUp, Shrink, Edit, QrCode } from 'lucide-react';
+import { ImageIcon, Replace, Music, Video, Code2, FileText, Sparkles, ImageUp, Shrink, Edit, QrCode, Brain } from 'lucide-react';
 
 export interface Tool {
   id: string;
@@ -65,6 +65,14 @@ export const toolsList: Tool[] = [
     description: 'Create QR codes for URLs, text, and more.',
     href: '/tools/qr-code-generator',
     icon: QrCode,
+    category: 'others',
+  },
+  {
+    id: 'brainstorming-tool',
+    name: 'Brainstorming Pad',
+    description: 'Jot down and organize your ideas with local storage persistence.',
+    href: '/tools/brainstorming-tool',
+    icon: Brain,
     category: 'others',
   }
   // Placeholder for future tools
