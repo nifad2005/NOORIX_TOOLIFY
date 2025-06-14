@@ -70,7 +70,7 @@ export const toolsList: Tool[] = [
   {
     id: 'brainstorming-tool',
     name: 'Brainstorming Pad',
-    description: 'Jot down and organize your ideas with local storage persistence.',
+    description: 'Organize ideas across multiple resizable pads with local storage persistence.',
     href: '/tools/brainstorming-tool',
     icon: Brain,
     category: 'others',
@@ -93,3 +93,4 @@ export const toolsList: Tool[] = [
   //   category: 'coding',
   // },
 ];
+
