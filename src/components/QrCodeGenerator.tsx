@@ -326,3 +326,5 @@ export default function QrCodeGenerator() {
     </div>
   );
 }
+
+    
