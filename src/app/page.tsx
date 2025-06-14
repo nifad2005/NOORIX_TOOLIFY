@@ -70,7 +70,6 @@ export default function HomePage() {
             <p className="text-xl text-muted-foreground">No tools available yet. Check back soon!</p>
         </div>
       )}
-      {/* Footer removed as it's now in RootLayout */}
     </div>
   );
 }
