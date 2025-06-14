@@ -325,3 +325,4 @@ export default function QrCodeGenerator() {
       </Card>
     </div>
   );
+}
