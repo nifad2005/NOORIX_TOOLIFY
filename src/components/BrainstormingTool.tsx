@@ -10,34 +10,51 @@ import BrainstormingSectionCard, { type BrainstormingSectionData } from './Brain
 const LOCAL_STORAGE_KEY = 'brainstormingToolSections_v1';
 
 export default function BrainstormingTool() {
-  const [sections, setSections] = useState<BrainstormingSectionData[]>([]);
+  // Start with a default state that doesn't rely on localStorage
+  const [sections, setSections] = useState<BrainstormingSectionData[]>([{ id: 'initial-pad', title: '', content: '' }]);
   const { toast } = useToast();
 
+  // useEffect to load data from localStorage only on the client-side after mount
   useEffect(() => {
-    const savedDataString = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedDataString) {
-      try {
-        const savedSections: BrainstormingSectionData[] = JSON.parse(savedDataString);
-        if (Array.isArray(savedSections)) {
-          setSections(savedSections);
-        } else {
-           // Handle case where old single object data might exist, or invalid data
-           localStorage.removeItem(LOCAL_STORAGE_KEY);
-           setSections([{ id: Date.now().toString(), title: '', content: '' }]);
+    if (typeof window !== 'undefined') {
+      const savedDataString = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedDataString) {
+        try {
+          const savedSections: BrainstormingSectionData[] = JSON.parse(savedDataString);
+          if (Array.isArray(savedSections) && savedSections.length > 0) {
+            setSections(savedSections);
+          } else {
+             // Handle case where old single object data might exist, or invalid data
+             localStorage.removeItem(LOCAL_STORAGE_KEY);
+             // Keep the initial default pad if localStorage is empty or invalid after parsing
+             if (sections.length === 1 && sections[0].id === 'initial-pad' && !sections[0].title && !sections[0].content) {
+                // If it's still the default, don't overwrite with a new default unless localStorage was truly empty
+             } else {
+                setSections([{ id: Date.now().toString(), title: '', content: '' }]);
+             }
+          }
+        } catch (error) {
+          console.error("Failed to parse brainstorming sections from localStorage", error);
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+          // Fallback to a single empty section if parsing fails, but preserve if current is just the default initial
+           if (!(sections.length === 1 && sections[0].id === 'initial-pad' && !sections[0].title && !sections[0].content)) {
+            setSections([{ id: Date.now().toString(), title: '', content: '' }]);
+          }
         }
-      } catch (error) {
-        console.error("Failed to parse brainstorming sections from localStorage", error);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        setSections([{ id: Date.now().toString(), title: '', content: '' }]); // Start with one empty section if parsing fails
+      } else {
+         // If no data in localStorage, and current state is the initial-pad, keep it.
+         // Otherwise, if sections were somehow cleared or different, initialize a new default pad.
+         if (sections.length === 0 || (sections.length > 0 && sections[0].id !== 'initial-pad')) {
+            setSections([{ id: Date.now().toString(), title: '', content: '' }]);
+         }
       }
-    } else {
-      // Start with one empty section if no data found
-      setSections([{ id: Date.now().toString(), title: '', content: '' }]);
     }
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount (client-side)
 
   const saveDataToLocalStorage = useCallback((updatedSections: BrainstormingSectionData[]) => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSections));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSections));
+    }
   }, []);
 
   const handleAddNewSection = useCallback(() => {
@@ -46,7 +63,11 @@ export default function BrainstormingTool() {
       title: '',
       content: '',
     };
-    const updatedSections = [...sections, newSection];
+    // If the only section is the 'initial-pad' and it's empty, replace it. Otherwise, add.
+    const updatedSections = sections.length === 1 && sections[0].id === 'initial-pad' && !sections[0].title && !sections[0].content
+      ? [newSection]
+      : [...sections, newSection];
+      
     setSections(updatedSections);
     saveDataToLocalStorage(updatedSections);
     toast({
@@ -118,6 +139,12 @@ export default function BrainstormingTool() {
         });
     }
   }, [sections, toast]);
+  
+  // Conditional rendering for the "no pads yet" message
+  // Show if sections array is empty OR if it only contains the placeholder 'initial-pad' and it's untouched.
+  const showNoPadsMessage = sections.length === 0 || 
+                           (sections.length === 1 && sections[0].id === 'initial-pad' && !sections[0].title && !sections[0].content && typeof window !== 'undefined' && !localStorage.getItem(LOCAL_STORAGE_KEY));
+
 
   return (
     <div className="w-full h-full flex flex-col p-4 md:p-6 lg:p-8">
@@ -137,24 +164,26 @@ export default function BrainstormingTool() {
         </Button>
       </header>
 
-      {sections.length === 0 && !localStorage.getItem(LOCAL_STORAGE_KEY) && ( // Show only if truly empty initial state
+      {showNoPadsMessage && (
          <div className="text-center py-10 flex-grow">
             <p className="text-xl text-muted-foreground">No brainstorming pads yet. Click "Add New Pad" to start!</p>
         </div>
       )}
 
-      <div className="space-y-6 flex-grow overflow-y-auto pb-8">
-        {sections.map(section => (
-          <BrainstormingSectionCard
-            key={section.id}
-            section={section}
-            onTitleChange={handleTitleChange}
-            onContentChange={handleContentChange}
-            onCopy={handleCopySection}
-            onDelete={handleDeleteSection}
-          />
-        ))}
-      </div>
+      {!showNoPadsMessage && (
+        <div className="space-y-6 flex-grow overflow-y-auto pb-8">
+          {sections.map(section => (
+            <BrainstormingSectionCard
+              key={section.id}
+              section={section}
+              onTitleChange={handleTitleChange}
+              onContentChange={handleContentChange}
+              onCopy={handleCopySection}
+              onDelete={handleDeleteSection}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
